@@ -1,7 +1,6 @@
-__pycache__/
-*.py[cod]
-.venv/
 .env
+__pycache__/
+*.pyc
+.venv/
 data/
-*.db
-uploads/
+node_modules/
