@@ -18,3 +18,11 @@ as we build them later in Phase 1.
 from app.models.user import User, RoleEnum, PasswordResetToken
 from app.models.tender import Tender, TenderStatus, TenderEvaluator
 from app.models.criterion import Criterion, CriterionCategory, RuleType
+from app.models.bidder import Bidder, BidderCategory, OverallVerdict
+from app.models.document import Document
+from app.models.evidence import Evidence
+from app.models.verdict import Verdict, VerdictEnum, Override
+from app.models.corrigendum import Corrigendum
+from app.models.grievance import Grievance, GrievanceStatus
+from app.models.job import Job, JobType, JobStatus
+from app.models.audit import AuditLog

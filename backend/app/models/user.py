@@ -57,6 +57,12 @@ class User(Base):
     # Which department this officer belongs to (Publisher/Evaluator/Auditor only).
     department: Mapped[str | None] = mapped_column(String(200), nullable=True)
 
+    # Company info, only meaningful for role=BIDDER. Captured once at
+    # self-registration and reused for every tender this bidder applies to.
+    company_name: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    gstin: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    phone: Mapped[str | None] = mapped_column(String(20), nullable=True)
+
     # Never store real passwords -- only the Argon2 hash from security.py.
     password_hash: Mapped[str] = mapped_column(String(300), nullable=False)
 

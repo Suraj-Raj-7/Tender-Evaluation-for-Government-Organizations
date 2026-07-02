@@ -1,0 +1,33 @@
+"""
+backend/app/schemas/grievance.py
+-----------------------------------
+Purpose: Defines the JSON shapes for a bidder submitting a grievance
+and viewing grievance status.
+"""
+
+from datetime import datetime
+from pydantic import BaseModel, Field
+from app.models.grievance import GrievanceStatus
+
+
+class GrievanceCreate(BaseModel):
+    """
+    Purpose: Shape of a grievance submission. description has a minimum
+    length of 20 characters, so a bidder can't submit a one-word complaint
+    with no real explanation.
+    Where it's used: POST /grievances request body (Bidder only).
+    """
+    description: str = Field(min_length=20)
+
+
+class GrievanceResponse(BaseModel):
+    """
+    Purpose: Shape of grievance data returned to bidders and auditors.
+    Where it's used: Returned by GET /grievances and GET /grievances/{id}.
+    """
+    id: int
+    status: GrievanceStatus
+    submitted_at: datetime
+    description: str
+
+    model_config = {"from_attributes": True}

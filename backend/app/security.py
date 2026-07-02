@@ -1,15 +1,18 @@
 """
 backend/app/security.py
 ------------------------
-Purpose: Handles two things -- (1) turning plain passwords into unreadable
-hashes and checking them back, and (2) creating and verifying JWT login
-tokens.
+Purpose: Handles three things -- (1) turning plain passwords into
+unreadable hashes and checking them back, (2) creating and verifying
+JWT login tokens, and (3) generating random temporary passwords for
+admin-created accounts.
 
 Why this file exists: No other file should touch raw passwords or write
 JWT logic directly. Centralizing it here means there is exactly one place
 that knows how hashing and tokens work, which is safer and easier to audit.
 """
 
+import secrets
+import string
 from datetime import datetime, timedelta, timezone
 from jose import jwt, JWTError
 from argon2 import PasswordHasher
@@ -100,3 +103,26 @@ def verify_token(token: str) -> dict:
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token",
         )
+
+
+def generate_temp_password(length: int = 12) -> str:
+    """
+    Purpose: Generates a random temporary password for admin-created
+    officer accounts, per spec 3.1 (12 chars, mix of letters/digits/symbols).
+
+    Where it's used: In routers/admin.py, when an admin creates a new
+    officer account or resets someone's password.
+
+    Where it gets its data: Nothing external -- pure random generation
+    using Python's 'secrets' module, which is cryptographically secure
+    (unlike the plain 'random' module).
+    """
+    alphabet = string.ascii_letters + string.digits + "!@#$%^&*"
+    # Keep generating until we get one with at least one digit and one
+    # symbol, so it always satisfies the password rules in spec 3.4.
+    while True:
+        password = "".join(secrets.choice(alphabet) for _ in range(length))
+        has_digit = any(c.isdigit() for c in password)
+        has_symbol = any(c in "!@#$%^&*" for c in password)
+        if has_digit and has_symbol:
+            return password
