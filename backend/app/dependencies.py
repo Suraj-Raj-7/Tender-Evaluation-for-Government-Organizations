@@ -19,14 +19,14 @@ from app.security import verify_token
 from app.models.user import User
 
 
-# Tells FastAPI to expect an "Authorization: Bearer <token>" header
-# on requests that use this. Swagger docs (/docs) will show a lock icon
-# on any route depending on it.
-bearer_scheme = HTTPBearer()
+# auto_error=False so we can raise our own 401 (not FastAPI's default 403)
+# when no token is provided at all -- 401 means "not identified", 403
+# means "identified but not allowed", and the spec requires 401 here.
+bearer_scheme = HTTPBearer(auto_error=False)
 
 
 def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
     db: Session = Depends(get_db),
 ) -> User:
     """
@@ -37,14 +37,22 @@ def get_current_user(
     current_user: User = Depends(get_current_user)
 
     Where it gets its data: 'credentials' is auto-extracted by FastAPI
-    from the Authorization header of the incoming request. 'db' is a
-    database session from database.py's get_db().
+    from the Authorization header of the incoming request (None if the
+    header is missing entirely). 'db' is a database session from
+    database.py's get_db().
 
-    What it does: Verifies the token's signature and expiry (via
+    What it does: If no token was provided, raises 401 immediately.
+    Otherwise verifies the token's signature and expiry (via
     security.py's verify_token), then loads the matching User row from
-    the database. Raises 401 if the token is invalid or the user
-    no longer exists.
+    the database. Raises 401 for any identity failure -- 403 is reserved
+    for "you are known, but not permitted" (see require_role below).
     """
+    if credentials is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+        )
+
     payload = verify_token(credentials.credentials)
     user_id = payload.get("user_id")
 
