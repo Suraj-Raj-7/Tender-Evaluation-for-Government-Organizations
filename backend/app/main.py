@@ -15,7 +15,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import init_db, SessionLocal
 from app.seed import run_seed
-from app.routers import auth, admin, tenders, criteria, bidders, jobs, grievances, audit
+from app.config import settings
+from app.routers import auth, admin, tenders, criteria, bidders, jobs, grievances, audit, documents
 
 app = FastAPI(title="TenderIQ API", version="1.0.0")
 
@@ -38,6 +39,13 @@ app.include_router(bidders.router)
 app.include_router(jobs.router)
 app.include_router(grievances.router)
 app.include_router(audit.router)
+app.include_router(documents.router)
+
+# Only registered when DEBUG=true in .env -- lets us test OCR directly
+# without Celery, but is never reachable in a real deployment.
+if settings.DEBUG:
+    from app.routers import dev_tools
+    app.include_router(dev_tools.router)
 
 
 @app.on_event("startup")

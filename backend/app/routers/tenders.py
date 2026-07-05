@@ -2,11 +2,10 @@
 backend/app/routers/tenders.py
 ---------------------------------
 Purpose: Create/view tenders, change status, assign evaluators, issue
-corrigenda. NIT document upload is added in Phase 2 (needs OCR/storage,
-not built yet).
+corrigenda, and upload a tender's NIT document.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -15,10 +14,14 @@ from app.models.user import User, RoleEnum
 from app.models.tender import Tender, TenderEvaluator
 from app.models.criterion import Criterion
 from app.models.corrigendum import Corrigendum
+from app.models.document import Document
+from app.models.job import Job, JobType, JobStatus
 from app.schemas.tender import (
     TenderCreate, TenderResponse, TenderStatusUpdate,
     TenderEvaluatorAssign, CorrigendumCreate, CorrigendumResponse,
 )
+from app.schemas.document import UploadResponse
+from app.services.storage import upload_file
 
 router = APIRouter(prefix="/tenders", tags=["tenders"])
 
@@ -173,3 +176,59 @@ def list_corrigenda(
 ):
     """Lists every amendment ever issued for a tender, newest actions included."""
     return db.query(Corrigendum).filter(Corrigendum.tender_id == tender_id).all()
+
+
+@router.post("/{tender_id}/document", response_model=UploadResponse)
+async def upload_nit_document(
+    tender_id: int,
+    file: UploadFile = File(...),
+    current_user: User = Depends(require_role(RoleEnum.PUBLISHER.value)),
+    db: Session = Depends(get_db),
+):
+    """
+    Purpose: Uploads a tender's NIT (Notice Inviting Tender) document.
+    Only allowed while the tender is still in DRAFT status.
+
+    Where it gets its data: file is the uploaded PDF/image from the
+    Publisher's Create Tender form. tender_id comes from the URL path.
+
+    Where it's used: Called once by the Publisher right after creating
+    a tender, from the CreateTender page (built in Phase 5).
+
+    Note: Real OCR + AI criteria extraction happens in Phase 3's Celery
+    worker. For now, this creates the Document and a PENDING Job row,
+    and returns immediately -- nothing processes it yet.
+    """
+    tender = db.query(Tender).filter(Tender.id == tender_id).first()
+    if tender is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tender not found")
+    if tender.status != tender.status.__class__.DRAFT:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="NIT document can only be uploaded while the tender is in DRAFT status",
+        )
+
+    contents = await file.read()
+    storage_path = upload_file(contents, file.filename, file.content_type)
+
+    document = Document(
+        tender_id=tender_id,
+        bidder_id=None,
+        uploaded_by=current_user.id,
+        storage_path=storage_path,
+        original_filename=file.filename,
+        mime_type=file.content_type,
+    )
+    db.add(document)
+    db.flush()  # assigns document.id without fully committing yet
+
+    job = Job(
+        tender_id=tender_id, document_id=document.id,
+        type=JobType.TENDER_EXTRACTION, status=JobStatus.PENDING,
+    )
+    db.add(job)
+    db.commit()
+    db.refresh(document)
+    db.refresh(job)
+
+    return UploadResponse(document_id=document.id, job_id=job.id)
