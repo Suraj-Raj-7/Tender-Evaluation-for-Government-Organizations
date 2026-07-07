@@ -25,25 +25,30 @@ class Settings(BaseSettings):
     # Database connection string. Used by database.py to connect SQLAlchemy to PostgreSQL.
     DATABASE_URL: str
 
-    # Redis connection string. Used by Celery (background jobs) in later phases.
+    # Redis connection string. Used as both the Celery broker (task queue)
+    # and result backend (job status storage) -- see workers/celery_app.py.
     REDIS_URL: str
 
     # Secret key used to sign JWT login tokens. Used by security.py.
     SECRET_KEY: str
 
-    # MinIO (file storage) connection details. Used by storage.py in Phase 2.
+    # MinIO (file storage) connection details. Used by storage.py.
     MINIO_ENDPOINT: str
     MINIO_ACCESS_KEY: str
     MINIO_SECRET_KEY: str
 
-    # AI provider keys. Used by llm.py in Phase 3. Optional for now.
+    # AI provider keys, in fallback order: Gemini first, Groq second,
+    # OpenRouter last. Used by services/llm.py in Phase 3. All optional
+    # (empty string default) so the app still starts if a key isn't set
+    # yet -- llm.py will simply skip a provider with no key configured.
     GEMINI_API_KEY: str = ""
     GROQ_API_KEY: str = ""
+    OPENROUTER_API_KEY: str = ""
 
     # Password for the very first admin account, created once by seed.py.
     FIRST_ADMIN_PASSWORD: str
 
-    # When True, enables extra debug behavior (e.g. dev-only routes in Phase 2).
+    # When True, enables extra debug behavior (e.g. dev-only routes).
     DEBUG: bool = False
 
     # Tells Pydantic where to find the .env file and how to read it.
