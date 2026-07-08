@@ -43,14 +43,17 @@ Respond with a JSON object of exactly this shape:
 
 Each criterion object must have exactly these fields:
 - "code": a short identifier like "C1", "C2", "C3" (sequential, starting from C1)
-- "category": one of {categories}
+- "category": WHAT SUBJECT AREA this criterion belongs to. Must be exactly one of {categories}. This describes the topic (financial, technical, compliance, legal, or a declaration), NEVER the evaluation logic.
 - "description": the full requirement text, in your own words if needed, but complete and legally precise
-- "rule_type": one of {rule_types}
+- "rule_type": HOW this criterion should be evaluated. Must be exactly one of {rule_types}. Note: one of these values is literally named "CLASSIFICATION" (for Make-in-India / local-content-percentage checks) -- this word belongs ONLY in "rule_type", never in "category". A local-content classification criterion should have category="TECHNICAL" and rule_type="CLASSIFICATION" -- these two fields must never contain the same word.
 - "operator": a comparison operator if relevant (e.g. ">=", "<="), or null if not applicable
 - "threshold_json": an object holding whatever numeric/structured data this rule needs (e.g. {{"value": 50, "unit": "Lakhs", "years": 3}}), or null if not applicable
 - "mandatory": true if failing this criterion disqualifies the bidder, false if it's just noted
 - "evidence_hint": a short hint about which document would prove this (e.g. "CA certificate", "GST registration"), or null
 - "msme_exempt": true only if the tender text explicitly exempts MSME/Startup companies from this specific criterion, otherwise false
+
+Example of a correct local-content classification criterion:
+{{"code": "C9", "category": "TECHNICAL", "rule_type": "CLASSIFICATION", "description": "Bidder must meet Class I or Class II local content classification under Make in India policy", "operator": ">=", "threshold_json": {{"class_1_pct": 50, "class_2_pct": 20}}, "mandatory": true, "evidence_hint": "Local content certificate", "msme_exempt": false}}
 
 Tender text:
 {tender_text}

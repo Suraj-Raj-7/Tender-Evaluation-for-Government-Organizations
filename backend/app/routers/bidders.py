@@ -6,6 +6,7 @@ evaluators/auditors view who has applied, and bidders upload their
 supporting documents (with the hard deadline lock enforced).
 """
 
+from app.workers.tasks import process_bidder_documents
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.orm import Session
@@ -125,5 +126,7 @@ async def upload_bid_documents(
     db.add(job)
     db.commit()
     db.refresh(job)
+    
+    process_bidder_documents.delay(job.id)
 
     return UploadResponse(job_id=job.id)

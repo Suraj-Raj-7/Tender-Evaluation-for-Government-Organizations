@@ -5,6 +5,7 @@ Purpose: Create/view tenders, change status, assign evaluators, issue
 corrigenda, and upload a tender's NIT document.
 """
 
+from app.workers.tasks import process_tender_document
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.orm import Session
 
@@ -230,5 +231,7 @@ async def upload_nit_document(
     db.commit()
     db.refresh(document)
     db.refresh(job)
+    
+    process_tender_document.delay(job.id)
 
     return UploadResponse(document_id=document.id, job_id=job.id)
