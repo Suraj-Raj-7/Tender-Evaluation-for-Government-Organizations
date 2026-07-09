@@ -100,7 +100,13 @@ def process_tender_document(job_id: str):
         document = db.query(Document).filter(Document.id == job.document_id).first()
         text = _run_ocr_and_save(document, db)
 
-        criteria_data = extract_criteria(text)
+        # Clear any criteria from a previous run on this tender (e.g. a
+        # re-upload after a corrigendum) before inserting fresh ones --
+        # otherwise re-processing the same tender silently duplicates
+        # every criterion instead of replacing them.
+        db.query(Criterion).filter(Criterion.tender_id == job.tender_id).delete()
+
+        criteria_list = extract_criteria(text)
 
         for item in criteria_data:
             db.add(Criterion(
