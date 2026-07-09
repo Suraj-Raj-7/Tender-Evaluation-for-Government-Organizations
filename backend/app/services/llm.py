@@ -135,6 +135,7 @@ def _call_openrouter(prompt: str, json_mode: bool) -> str:
         raise LLMProviderError("OpenRouter", e)
 
 
+
 def call_llm(prompt: str, json_mode: bool = False) -> str:
     """
     Purpose: The single public entry point for getting an AI answer

@@ -96,6 +96,7 @@ def _validate_criterion_dict(item: dict, index: int) -> None:
         )
 
 
+
 def extract_criteria(tender_text: str) -> list[dict]:
     """
     Purpose: The main entry point of this file. Takes a tender's full
