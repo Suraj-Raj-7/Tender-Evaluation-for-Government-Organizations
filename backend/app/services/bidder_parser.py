@@ -69,11 +69,18 @@ def _format_criteria_for_prompt(criteria: list[dict]) -> str:
     return "\n".join(lines)
 
 
+# Spec-mandated safety cap: prevents a bidder with many/large documents
+# from producing a prompt so large it blows past provider context
+# limits or becomes needlessly expensive to run.
+_MAX_COMBINED_TEXT_CHARS = 12000
+
+
 def _format_documents_for_prompt(documents: list[dict]) -> str:
     """
     Purpose: Turns a list of a bidder's documents into a clearly
     tagged block of text, so the AI can report exactly which document
-    each piece of evidence came from.
+    each piece of evidence came from. Truncates the combined result if
+    it exceeds a safe size limit.
 
     Where it gets its data: documents is a list of dicts, each with
     "id" (the Document row's database id) and "text" (that document's
@@ -85,7 +92,12 @@ def _format_documents_for_prompt(documents: list[dict]) -> str:
     parts = []
     for doc in documents:
         parts.append(f"--- document_id={doc['id']} ---\n{doc['text']}")
-    return "\n\n".join(parts)
+    combined = "\n\n".join(parts)
+
+    if len(combined) > _MAX_COMBINED_TEXT_CHARS:
+        combined = combined[:_MAX_COMBINED_TEXT_CHARS] + "\n\n[TRUNCATED -- remaining document text omitted]"
+
+    return combined
 
 
 def _validate_evidence_dict(item: dict, index: int, valid_criterion_ids: set[int], valid_document_ids: set[int]) -> None:

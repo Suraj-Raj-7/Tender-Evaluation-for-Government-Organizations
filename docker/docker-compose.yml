@@ -52,6 +52,53 @@ services:
       timeout: 5s
       retries: 5
 
+  api:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: tenderiq-api
+    restart: always
+    env_file:
+      - ../backend/.env
+    environment:
+      # Override host-machine-only values from .env with in-network
+      # service names -- containers can't reach each other via "localhost".
+      DATABASE_URL: postgresql+psycopg2://postgres:password@postgres:5432/tenderiq
+      REDIS_URL: redis://redis:6379/0
+      MINIO_ENDPOINT: minio:9000
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+
+  celery-worker:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: tenderiq-celery-worker
+    restart: always
+    env_file:
+      - ../backend/.env
+    environment:
+      DATABASE_URL: postgresql+psycopg2://postgres:password@postgres:5432/tenderiq
+      REDIS_URL: redis://redis:6379/0
+      MINIO_ENDPOINT: minio:9000
+    # No --pool=solo needed here -- that workaround is Windows-only.
+    # This container runs Linux, where Celery's default pool works fine.
+    command: celery -A app.workers.celery_app worker --loglevel=info --concurrency=2
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+
 volumes:
   postgres_data:
   redis_data:
