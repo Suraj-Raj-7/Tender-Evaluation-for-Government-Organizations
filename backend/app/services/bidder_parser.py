@@ -100,6 +100,38 @@ def _format_documents_for_prompt(documents: list[dict]) -> str:
     return combined
 
 
+def _normalize_page_number(raw_page_number) -> int | None:
+    """
+    Purpose: Coerces whatever the AI returned for page_number into a
+    single valid integer, or None -- since the Evidence.page_number
+    database column can only hold one integer, but the AI sometimes
+    reports multiple pages (e.g. "1, 4") when evidence for one
+    criterion spans several pages in a document.
+
+    Where it gets its data: raw_page_number is whatever value the AI
+    put in one evidence item's "page_number" field -- could already be
+    a clean int, None, or a multi-page string like "1, 4".
+
+    Where it's used: Called once per evidence item by extract_evidence()
+    below, before validation, so a multi-page reference never reaches
+    the database as an un-castable string.
+
+    Why the first page, not all of them: page_number here is meant as
+    a quick "look here first" pointer for the Evidence Panel (Phase 5)
+    -- not a complete page list. Losing the second page reference is an
+    acceptable simplification; crashing the entire evidence batch over
+    it is not.
+    """
+    if raw_page_number is None:
+        return None
+    if isinstance(raw_page_number, int):
+        return raw_page_number
+    if isinstance(raw_page_number, str):
+        first_number = raw_page_number.split(",")[0].strip()
+        if first_number.isdigit():
+            return int(first_number)
+    return None
+
 def _validate_evidence_dict(item: dict, index: int, valid_criterion_ids: set[int], valid_document_ids: set[int]) -> None:
     """
     Purpose: Checks that one parsed evidence object has the fields the
@@ -194,6 +226,7 @@ def extract_evidence(documents: list[dict], criteria: list[dict]) -> list[dict]:
         raise ValueError(f"'evidence' was present but not a list. Got: {type(evidence_list)}")
 
     for index, item in enumerate(evidence_list):
+        item["page_number"] = _normalize_page_number(item.get("page_number"))
         _validate_evidence_dict(item, index, valid_criterion_ids, valid_document_ids)
 
     return evidence_list
