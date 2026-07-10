@@ -86,6 +86,17 @@ def process_tender_document(job_id: str):
     Where it's used: Queued by routers/tenders.py. Never called
     directly -- always via .delay() so it runs in the Celery worker
     process, not inside the HTTP request.
+
+    Re-upload safety: if this tender already has criteria AND any
+    bidder already has Evidence against them, this task refuses to
+    replace the criteria (raises an error, Job marked FAILED). This
+    protects the immutable Evidence/Verdict trail (Project Context
+    7.2) -- deleting a Criterion that Evidence already points to would
+    either cascade-delete that Evidence or leave it orphaned, both of
+    which break the audit trail a CAG auditor relies on. In the normal
+    product flow this should never trigger, since NIT upload is
+    DRAFT-only and bidders can't apply until PUBLISHED -- this is a
+    hard safety net, not an expected path.
     """
     db = SessionLocal()
     try:
@@ -100,15 +111,37 @@ def process_tender_document(job_id: str):
         document = db.query(Document).filter(Document.id == job.document_id).first()
         text = _run_ocr_and_save(document, db)
 
+        # Safety check before replacing criteria: if any bidder already
+        # has Evidence against this tender's current criteria, deleting
+        # them would break the immutable evidence trail. Enforced as a
+        # hard stop rather than a silent cascade or silent skip.
+        existing_criteria_ids = [
+            c.id for c in db.query(Criterion.id).filter(Criterion.tender_id == job.tender_id).all()
+        ]
+        evidence_exists = (
+            db.query(Evidence)
+            .filter(Evidence.criterion_id.in_(existing_criteria_ids))
+            .first() is not None
+        ) if existing_criteria_ids else False
+
+        if evidence_exists:
+            raise ValueError(
+                "Cannot replace criteria: evidence already exists against "
+                "this tender's current criteria. Manual review required "
+                "before re-extracting."
+            )
+
         # Clear any criteria from a previous run on this tender (e.g. a
         # re-upload after a corrigendum) before inserting fresh ones --
         # otherwise re-processing the same tender silently duplicates
-        # every criterion instead of replacing them.
+        # every criterion instead of replacing them. Safe to do here
+        # only because the check above confirmed no Evidence depends
+        # on the rows being deleted.
         db.query(Criterion).filter(Criterion.tender_id == job.tender_id).delete()
 
         criteria_list = extract_criteria(text)
 
-        for item in criteria_data:
+        for item in criteria_list:
             db.add(Criterion(
                 tender_id=job.tender_id,
                 code=item["code"],
