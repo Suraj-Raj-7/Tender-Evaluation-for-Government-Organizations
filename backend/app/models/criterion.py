@@ -1,4 +1,4 @@
-"""
+﻿"""
 backend/app/models/criterion.py
 ---------------------------------
 Purpose: Defines the Criterion table -- one row per eligibility rule
