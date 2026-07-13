@@ -18,6 +18,7 @@ parses the result.
 
 
 import json
+import re
 
 from app.services.llm import call_llm
 
@@ -208,6 +209,17 @@ def extract_evidence(documents: list[dict], criteria: list[dict]) -> list[dict]:
     )
 
     raw_response = call_llm(prompt, json_mode=True)
+
+    # REPAIR (found via real data on 2026-07-13): the AI sometimes writes
+    # an unquoted multi-page value like "page_number": 2, 5 instead of a
+    # single number -- this breaks JSON's syntax itself (unlike the
+    # already-fixed quoted "1, 4" string case), so it must be repaired
+    # before json.loads() even runs. Keeps only the first page number.
+    raw_response = re.sub(
+        r'("page_number"\s*:\s*\d+)\s*,\s*\d+(?:\s*,\s*\d+)*',
+        r"\1",
+        raw_response,
+    )
 
     try:
         parsed = json.loads(raw_response)
