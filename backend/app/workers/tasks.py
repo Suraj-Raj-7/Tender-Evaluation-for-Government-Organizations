@@ -3,13 +3,14 @@ backend/app/workers/tasks.py
 --------------------------------
 Purpose: The actual Celery task functions -- the code that runs in the
 background worker process, not in the FastAPI request/response cycle.
-This is where OCR (Phase 2), AI extraction (this phase's parser
-files), and the database finally get tied together into one pipeline.
+This is where OCR (Phase 2), AI extraction (Phase 3), and now the
+rules engine (Phase 4) get tied together into one pipeline: upload ->
+OCR -> AI extraction -> deterministic PASS/FAIL/REVIEW verdicts.
 
 Why this file exists: Routers only ever CREATE a Job row and call
-.delay() on a task here -- they never run OCR/AI themselves, since
-that would block the HTTP response for 20-60 seconds. This file is
-where that slow work actually happens, safely isolated in its own
+.delay() on a task here -- they never run OCR/AI/rules themselves,
+since that would block the HTTP response for many seconds. This file
+is where that slow work actually happens, safely isolated in its own
 process.
 
 IMPORTANT: Celery tasks run in a separate process from FastAPI, so
@@ -27,10 +28,14 @@ from app.models.job import Job, JobStatus
 from app.models.document import Document
 from app.models.criterion import Criterion
 from app.models.evidence import Evidence
+from app.models.verdict import Verdict
+from app.models.bidder import Bidder
+from app.models.tender import Tender
 from app.services.storage import download_file
 from app.services.ocr import extract_text
 from app.services.tender_parser import extract_criteria
 from app.services.bidder_parser import extract_evidence
+from app.services.rules_engine import evaluate_evidence, calculate_overall_verdict
 
 
 def _run_ocr_and_save(document: Document, db) -> str:
@@ -175,8 +180,10 @@ def process_tender_document(job_id: str):
 def process_bidder_documents(job_id: str):
     """
     Purpose: Background pipeline for a bidder's submitted documents --
-    OCR each one, then match evidence against the tender's already-
-    extracted criteria, then save those as Evidence rows.
+    OCR each one, match evidence against the tender's already-extracted
+    criteria, save those as Evidence rows, then run each one through
+    the deterministic rules engine (Phase 4) to produce a Verdict row,
+    and finally recalculate the bidder's overall verdict.
 
     Where it gets its data: job_id is passed in by bidders.py's
     upload_bid_documents() endpoint, via .delay(job.id), right after
@@ -184,10 +191,6 @@ def process_bidder_documents(job_id: str):
 
     Where it's used: Queued by routers/bidders.py. Never called
     directly -- always via .delay().
-
-    Note: This task creates Evidence rows only -- no Verdict rows.
-    Deciding PASS/FAIL/REVIEW from this evidence is the rules engine's
-    job, built in Phase 4, not this phase.
     """
     db = SessionLocal()
     try:
@@ -206,6 +209,7 @@ def process_bidder_documents(job_id: str):
             documents_for_ai.append({"id": document.id, "text": text})
 
         criteria = db.query(Criterion).filter(Criterion.tender_id == job.tender_id).all()
+        criteria_by_id = {c.id: c for c in criteria}
         criteria_for_ai = [
             {"id": c.id, "code": c.code, "description": c.description, "evidence_hint": c.evidence_hint}
             for c in criteria
@@ -213,8 +217,11 @@ def process_bidder_documents(job_id: str):
 
         evidence_data = extract_evidence(documents_for_ai, criteria_for_ai)
 
+        bidder = db.query(Bidder).filter(Bidder.id == job.bidder_id).first()
+        tender = db.query(Tender).filter(Tender.id == job.tender_id).first()
+
         for item in evidence_data:
-            db.add(Evidence(
+            evidence_row = Evidence(
                 bidder_id=job.bidder_id,
                 criterion_id=item["criterion_id"],
                 document_id=item.get("document_id"),
@@ -222,7 +229,24 @@ def process_bidder_documents(job_id: str):
                 confidence=item["confidence"],
                 ai_rationale=item.get("ai_rationale"),
                 page_number=item.get("page_number"),
+            )
+            db.add(evidence_row)
+            db.flush()  # assigns evidence_row.id, needed to link the Verdict row below
+
+            criterion = criteria_by_id.get(item["criterion_id"])
+            ai_verdict, rationale = evaluate_evidence(evidence_row, criterion, bidder, tender)
+
+            db.add(Verdict(
+                evidence_id=evidence_row.id,
+                ai_verdict=ai_verdict,
+                final_verdict=ai_verdict,
+                is_overridden=False,
             ))
+
+        db.commit()
+
+        if bidder is not None:
+            calculate_overall_verdict(bidder.id, db)
 
         job.status = JobStatus.DONE
         job.finished_at = datetime.now(timezone.utc)
