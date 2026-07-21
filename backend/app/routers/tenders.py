@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.dependencies import get_current_user, require_role
 from app.models.user import User, RoleEnum
-from app.models.tender import Tender, TenderEvaluator
+from app.models.tender import Tender, TenderEvaluator, TenderStatus
 from app.models.criterion import Criterion
 from app.models.corrigendum import Corrigendum
 from app.models.document import Document
@@ -73,6 +73,10 @@ def list_tenders(
             db.query(TenderEvaluator).filter(TenderEvaluator.user_id == current_user.id).all()
         ]
         tenders = db.query(Tender).filter(Tender.id.in_(assigned_ids)).all()
+    elif current_user.role == RoleEnum.BIDDER:
+        # FIX (Phase 5): bidders shouldn't see/apply to unpublished
+        # DRAFT tenders -- these have no finalized criteria yet.
+        tenders = db.query(Tender).filter(Tender.status != TenderStatus.DRAFT).all()
     else:
         tenders = db.query(Tender).all()
     return [_to_response(t, db) for t in tenders]
