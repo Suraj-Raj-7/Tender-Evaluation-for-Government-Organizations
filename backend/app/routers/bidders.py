@@ -2,8 +2,9 @@
 backend/app/routers/bidders.py
 ---------------------------------
 Purpose: A bidder applies to a specific tender (creates a Bidder row),
-evaluators/auditors view who has applied, and bidders upload their
-supporting documents (with the hard deadline lock enforced).
+evaluators/auditors view who has applied, a bidder views their own
+applications across all tenders, and bidders upload their supporting
+documents (with the hard deadline lock enforced).
 """
 
 from app.workers.tasks import process_bidder_documents
@@ -18,7 +19,7 @@ from app.models.tender import Tender
 from app.models.bidder import Bidder
 from app.models.document import Document
 from app.models.job import Job, JobType, JobStatus
-from app.schemas.bidder import BidderCreate, BidderResponse
+from app.schemas.bidder import BidderCreate, BidderResponse, MyApplicationResponse
 from app.schemas.document import UploadResponse
 from app.services.storage import upload_file
 
@@ -68,6 +69,44 @@ def list_bidders_for_tender(
     return db.query(Bidder).filter(Bidder.tender_id == tender_id).all()
 
 
+@router.get("/bidders/me", response_model=list[MyApplicationResponse])
+def list_my_applications(
+    current_user: User = Depends(require_role(RoleEnum.BIDDER.value)),
+    db: Session = Depends(get_db),
+):
+    """
+    Purpose: Lists every tender the logged-in bidder has applied to,
+    combined with that tender's name/status/deadline, in one call.
+
+    Where it gets its data: every Bidder row where user_id matches the
+    logged-in bidder, joined in Python with each row's parent Tender
+    (kept simple/explicit rather than a SQL join, since a bidder
+    realistically has few applications).
+
+    Where it's used: called once by BidderPortal.jsx (Phase 5) to
+    render the bidder's "My Applications" list.
+    """
+    bidder_rows = db.query(Bidder).filter(Bidder.user_id == current_user.id).all()
+
+    results = []
+    for bidder in bidder_rows:
+        tender = db.query(Tender).filter(Tender.id == bidder.tender_id).first()
+        if tender is None:
+            continue
+        results.append(MyApplicationResponse(
+            id=bidder.id,
+            tender_id=tender.id,
+            tender_name=tender.name,
+            tender_status=tender.status,
+            tender_deadline=tender.deadline,
+            company_name=bidder.company_name,
+            category=bidder.category,
+            overall_verdict=bidder.overall_verdict,
+            applied_at=bidder.applied_at,
+        ))
+    return results
+
+
 @router.post("/tenders/{tender_id}/bidders/{bidder_id}/documents", response_model=UploadResponse)
 async def upload_bid_documents(
     tender_id: int,
@@ -80,16 +119,6 @@ async def upload_bid_documents(
     Purpose: Uploads one or more supporting documents for a bidder's
     application. HARD DEADLINE LOCK: rejected immediately if the
     tender's deadline has already passed (legal requirement, spec 5.2).
-
-    Where it gets its data: files are whatever the bidder selects in
-    their application form -- multiple files in one request. tender_id
-    and bidder_id come from the URL path.
-
-    Where it's used: Called from the BidderPortal page (Phase 5) before
-    the deadline passes.
-
-    Note: Real OCR + evidence extraction happens in Phase 3's Celery
-    worker. This just stores the files and creates one PENDING Job.
     """
     tender = db.query(Tender).filter(Tender.id == tender_id).first()
     if tender is None:
@@ -126,7 +155,7 @@ async def upload_bid_documents(
     db.add(job)
     db.commit()
     db.refresh(job)
-    
+
     process_bidder_documents.delay(job.id)
 
     return UploadResponse(job_id=job.id)
