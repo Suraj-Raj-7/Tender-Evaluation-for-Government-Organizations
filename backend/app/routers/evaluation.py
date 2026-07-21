@@ -9,6 +9,7 @@ complete.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -237,6 +238,15 @@ def mark_evaluation_complete(
     tender = db.query(Tender).filter(Tender.id == tender_id).first()
     if tender is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tender not found")
+    
+    if datetime.now(timezone.utc) < tender.deadline:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "Cannot mark evaluation complete before the submission deadline "
+                f"({tender.deadline.isoformat()}) -- more bidders may still apply."
+            ),
+        )
 
     unresolved_review_exists = (
         db.query(Verdict)
