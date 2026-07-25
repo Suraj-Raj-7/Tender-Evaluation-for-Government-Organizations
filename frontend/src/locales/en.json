@@ -1,0 +1,116 @@
+{
+  "login": {
+    "title": "TenderIQ Login",
+    "username": "Username",
+    "password": "Password",
+    "submit": "Log In",
+    "registerLink": "Register as Bidder",
+    "error": "Invalid username or password"
+  },
+  "common": {
+    "logout": "Logout",
+    "actions": "Actions",
+    "status": "Status"
+  },
+  "tenderList": {
+    "createTender": "Create Tender",
+    "id": "ID",
+    "name": "Name",
+    "value": "Value (Lakhs)",
+    "deadline": "Deadline",
+    "criteria": "Criteria",
+    "evaluate": "Evaluate",
+    "manage": "Manage",
+    "applyNow": "Apply Now"
+  },
+  "createTender": {
+    "title": "Create Tender",
+    "tenderName": "Tender Name",
+    "description": "Description",
+    "estimatedValue": "Estimated Value (Lakhs)",
+    "deadline": "Deadline",
+    "createButton": "Create Tender",
+    "selectNit": "Select NIT Document",
+    "uploadNit": "Upload NIT",
+    "criteriaExtracted": "Criteria Extracted",
+    "backToList": "Done -- Back to Tender List"
+  },
+  "matrix": {
+    "eligible": "Eligible",
+    "notEligible": "Not Eligible",
+    "manualReview": "Manual Review",
+    "totalBidders": "Total Bidders",
+    "markComplete": "Mark Evaluation Complete",
+    "bidder": "Bidder",
+    "overall": "Overall"
+  },
+  "evidencePanel": {
+    "extractedValue": "Extracted Value",
+    "noneFound": "None found",
+    "sourceDocument": "Source Document",
+    "page": "Page",
+    "extractedAt": "Extracted At",
+    "confidence": "Confidence",
+    "aiRationale": "AI Rationale",
+    "noRationale": "No rationale provided",
+    "overrideVerdict": "Override Verdict",
+    "overrideHistory": "Override History",
+    "noOverrides": "No overrides yet.",
+    "changeVerdictTo": "Change verdict to...",
+    "reasonPlaceholder": "Reason (minimum 10 characters, required)",
+    "submitOverride": "Submit Override",
+    "noSourceDocument": "No source document",
+    "viewDocument": "View document"
+  },
+  "bidderPortal": {
+    "title": "My Applications",
+    "tender": "Tender",
+    "deadline": "Deadline",
+    "action": "Action",
+    "uploadDocuments": "Upload Documents",
+    "awaitingEvaluation": "Awaiting evaluation",
+    "selectFiles": "Select Files",
+    "upload": "Upload"
+  },
+  "adminPanel": {
+    "title": "Admin Panel",
+    "createNewUser": "Create New User",
+    "username": "Username",
+    "fullName": "Full Name",
+    "role": "Role",
+    "deactivate": "Deactivate",
+    "reactivate": "Reactivate",
+    "resetPassword": "Reset Password",
+    "createOfficerAccount": "Create Officer Account",
+    "email": "Email",
+    "department": "Department",
+    "createUser": "Create User",
+    "active": "Active",
+    "inactive": "Inactive"
+  },
+  "auditLog": {
+    "title": "Audit Log",
+    "totalActionsShown": "Total Actions Shown",
+    "overridesShown": "Overrides Shown",
+    "filterByAction": "Filter by action",
+    "timestamp": "Timestamp",
+    "userId": "User ID",
+    "action": "Action",
+    "entityType": "Entity Type",
+    "entityId": "Entity ID",
+    "oldToNew": "Old -> New"
+  },
+  "registerBidder": {
+    "title": "Register as Bidder",
+    "companyName": "Company Name",
+    "gstin": "GSTIN",
+    "email": "Email",
+    "phone": "Phone",
+    "password": "Password",
+    "register": "Register",
+    "backToLogin": "Back to Login",
+    "accountCreated": "Account created",
+    "accountCreatedDesc": "You can now log in with your email and password.",
+    "goToLogin": "Go to Login"
+  }
+}

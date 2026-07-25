@@ -1,0 +1,116 @@
+{
+  "login": {
+    "title": "टेंडरआईक्यू लॉगिन",
+    "username": "उपयोगकर्ता नाम",
+    "password": "पासवर्ड",
+    "submit": "लॉग इन करें",
+    "registerLink": "बोलीदाता के रूप में पंजीकरण करें",
+    "error": "अमान्य उपयोगकर्ता नाम या पासवर्ड"
+  },
+  "common": {
+    "logout": "लॉग आउट",
+    "actions": "कार्रवाई",
+    "status": "स्थिति"
+  },
+  "tenderList": {
+    "createTender": "टेंडर बनाएं",
+    "id": "आईडी",
+    "name": "नाम",
+    "value": "मूल्य (लाख)",
+    "deadline": "अंतिम तिथि",
+    "criteria": "मापदंड",
+    "evaluate": "मूल्यांकन करें",
+    "manage": "प्रबंधित करें",
+    "applyNow": "अभी आवेदन करें"
+  },
+  "createTender": {
+    "title": "टेंडर बनाएं",
+    "tenderName": "टेंडर का नाम",
+    "description": "विवरण",
+    "estimatedValue": "अनुमानित मूल्य (लाख)",
+    "deadline": "अंतिम तिथि",
+    "createButton": "टेंडर बनाएं",
+    "selectNit": "एनआईटी दस्तावेज़ चुनें",
+    "uploadNit": "एनआईटी अपलोड करें",
+    "criteriaExtracted": "मापदंड निकाले गए",
+    "backToList": "पूर्ण -- टेंडर सूची पर वापस जाएं"
+  },
+  "matrix": {
+    "eligible": "योग्य",
+    "notEligible": "अयोग्य",
+    "manualReview": "मैन्युअल समीक्षा",
+    "totalBidders": "कुल बोलीदाता",
+    "markComplete": "मूल्यांकन पूर्ण करें",
+    "bidder": "बोलीदाता",
+    "overall": "समग्र"
+  },
+  "evidencePanel": {
+    "extractedValue": "निकाला गया मूल्य",
+    "noneFound": "कुछ नहीं मिला",
+    "sourceDocument": "स्रोत दस्तावेज़",
+    "page": "पृष्ठ",
+    "extractedAt": "निकाला गया समय",
+    "confidence": "विश्वास स्तर",
+    "aiRationale": "एआई तर्क",
+    "noRationale": "कोई तर्क प्रदान नहीं किया गया",
+    "overrideVerdict": "निर्णय ओवरराइड करें",
+    "overrideHistory": "ओवरराइड इतिहास",
+    "noOverrides": "अभी तक कोई ओवरराइड नहीं।",
+    "changeVerdictTo": "निर्णय बदलें...",
+    "reasonPlaceholder": "कारण (न्यूनतम 10 अक्षर, आवश्यक)",
+    "submitOverride": "ओवरराइड सबमिट करें",
+    "noSourceDocument": "कोई स्रोत दस्तावेज़ नहीं",
+    "viewDocument": "दस्तावेज़ देखें"
+  },
+  "bidderPortal": {
+    "title": "मेरे आवेदन",
+    "tender": "टेंडर",
+    "deadline": "अंतिम तिथि",
+    "action": "कार्रवाई",
+    "uploadDocuments": "दस्तावेज़ अपलोड करें",
+    "awaitingEvaluation": "मूल्यांकन की प्रतीक्षा में",
+    "selectFiles": "फ़ाइलें चुनें",
+    "upload": "अपलोड करें"
+  },
+  "adminPanel": {
+    "title": "एडमिन पैनल",
+    "createNewUser": "नया उपयोगकर्ता बनाएं",
+    "username": "उपयोगकर्ता नाम",
+    "fullName": "पूरा नाम",
+    "role": "भूमिका",
+    "deactivate": "निष्क्रिय करें",
+    "reactivate": "पुनः सक्रिय करें",
+    "resetPassword": "पासवर्ड रीसेट करें",
+    "createOfficerAccount": "अधिकारी खाता बनाएं",
+    "email": "ईमेल",
+    "department": "विभाग",
+    "createUser": "उपयोगकर्ता बनाएं",
+    "active": "सक्रिय",
+    "inactive": "निष्क्रिय"
+  },
+  "auditLog": {
+    "title": "ऑडिट लॉग",
+    "totalActionsShown": "कुल दिखाई गई कार्रवाइयां",
+    "overridesShown": "दिखाए गए ओवरराइड",
+    "filterByAction": "कार्रवाई के अनुसार फ़िल्टर करें",
+    "timestamp": "समयांक",
+    "userId": "उपयोगकर्ता आईडी",
+    "action": "कार्रवाई",
+    "entityType": "इकाई प्रकार",
+    "entityId": "इकाई आईडी",
+    "oldToNew": "पुराना -> नया"
+  },
+  "registerBidder": {
+    "title": "बोलीदाता के रूप में पंजीकरण करें",
+    "companyName": "कंपनी का नाम",
+    "gstin": "जीएसटीआईएन",
+    "email": "ईमेल",
+    "phone": "फ़ोन",
+    "password": "पासवर्ड",
+    "register": "पंजीकरण करें",
+    "backToLogin": "लॉगिन पर वापस जाएं",
+    "accountCreated": "खाता बनाया गया",
+    "accountCreatedDesc": "अब आप अपने ईमेल और पासवर्ड से लॉग इन कर सकते हैं।",
+    "goToLogin": "लॉगिन पर जाएं"
+  }
+}
