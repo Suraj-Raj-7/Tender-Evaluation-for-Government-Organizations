@@ -10,7 +10,7 @@ specific file?" before streaming it back -- so a bidder can never see
 another bidder's documents.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
 from io import BytesIO
 from sqlalchemy.orm import Session
@@ -22,6 +22,7 @@ from app.models.document import Document
 from app.models.bidder import Bidder
 from app.schemas.document import DocumentResponse
 from app.services.storage import download_file
+from app.services.audit_logger import log_action
 
 router = APIRouter(tags=["documents"])
 
@@ -29,6 +30,7 @@ router = APIRouter(tags=["documents"])
 @router.get("/documents/{document_id}")
 def get_document(
     document_id: int,
+    http_request: Request,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -60,9 +62,16 @@ def get_document(
 
     file_bytes = download_file(document.storage_path)
 
-    # NOTE: Writing DOCUMENT_VIEWED to the audit log is part of Phase 6's
-    # audit_logger.py service, which doesn't exist yet -- deferred to
-    # that phase, per staying within this phase's scope.
+    log_action(
+        db,
+        user_id=current_user.id,
+        action="DOCUMENT_VIEWED",
+        entity_type="document",
+        entity_id=document.id,
+        ip_address=http_request.client.host if http_request.client else None,
+    )
+    db.commit()
+
     return StreamingResponse(
         BytesIO(file_bytes),
         media_type=document.mime_type,

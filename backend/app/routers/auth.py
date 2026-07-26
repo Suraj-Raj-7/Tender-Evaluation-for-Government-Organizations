@@ -10,7 +10,7 @@ registering) is a login here.
 """
 
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -24,6 +24,7 @@ from app.schemas.user import (
 )
 from app.schemas.bidder import BidderRegister
 from app.security import hash_password, verify_password, create_access_token
+from app.services.audit_logger import log_action
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -33,7 +34,7 @@ MAX_FAILED_ATTEMPTS = 5
 
 
 @router.post("/login", response_model=TokenResponse)
-def login(request: LoginRequest, db: Session = Depends(get_db)):
+def login(request: LoginRequest, http_request: Request, db: Session = Depends(get_db)):
     """
     Purpose: Authenticates a user and issues a JWT token valid for 8 hours.
 
@@ -76,6 +77,14 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
 
     # Successful login -- reset the failed attempt counter.
     user.failed_attempts = 0
+    log_action(
+        db,
+        user_id=user.id,
+        action="LOGIN",
+        entity_type="user",
+        entity_id=user.id,
+        ip_address=http_request.client.host if http_request.client else None,
+    )
     db.commit()
 
     token = create_access_token(user_id=user.id, role=user.role.value)

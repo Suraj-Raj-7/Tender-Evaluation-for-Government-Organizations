@@ -6,7 +6,7 @@ corrigenda, and upload a tender's NIT document.
 """
 
 from app.workers.tasks import process_tender_document
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, Request, status, UploadFile, File
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -22,7 +22,9 @@ from app.schemas.tender import (
     TenderEvaluatorAssign, CorrigendumCreate, CorrigendumResponse,
 )
 from app.schemas.document import UploadResponse
+from app.schemas.user import UserResponse
 from app.services.storage import upload_file
+from app.services.audit_logger import log_action
 
 router = APIRouter(prefix="/tenders", tags=["tenders"])
 
@@ -44,6 +46,7 @@ def _to_response(tender: Tender, db: Session) -> TenderResponse:
 @router.post("", response_model=TenderResponse)
 def create_tender(
     request: TenderCreate,
+    http_request: Request,
     current_user: User = Depends(require_role(RoleEnum.PUBLISHER.value)),
     db: Session = Depends(get_db),
 ):
@@ -53,6 +56,17 @@ def create_tender(
         estimated_value=request.estimated_value, deadline=request.deadline,
     )
     db.add(tender)
+    db.flush()  # assigns tender.id, needed for the log entry below
+
+    log_action(
+        db,
+        user_id=current_user.id,
+        action="TENDER_CREATED",
+        entity_type="tender",
+        entity_id=tender.id,
+        new_value={"name": tender.name, "estimated_value": tender.estimated_value},
+        ip_address=http_request.client.host if http_request.client else None,
+    )
     db.commit()
     db.refresh(tender)
     return _to_response(tender, db)
@@ -80,6 +94,30 @@ def list_tenders(
     else:
         tenders = db.query(Tender).all()
     return [_to_response(t, db) for t in tenders]
+
+
+@router.get("/evaluators", response_model=list[UserResponse])
+def list_evaluators(
+    current_user: User = Depends(require_role(RoleEnum.PUBLISHER.value)),
+    db: Session = Depends(get_db),
+):
+    """
+    Purpose: Lists every active EVALUATOR account, so a Publisher can
+    pick one to assign to a tender.
+
+    Where it gets its data: queries every User row with
+    role=EVALUATOR and is_active=True.
+
+    Where it's used: called by the frontend's TenderList.jsx to
+    populate the "Assign Evaluator" modal's dropdown -- this is the
+    only place a Publisher can discover which evaluator accounts
+    exist, since GET /admin/users is SYSTEM_ADMIN only.
+    """
+    return (
+        db.query(User)
+        .filter(User.role == RoleEnum.EVALUATOR, User.is_active.is_(True))
+        .all()
+    )
 
 
 @router.get("/{tender_id}", response_model=TenderResponse)

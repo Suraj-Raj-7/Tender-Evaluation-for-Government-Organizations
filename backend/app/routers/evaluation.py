@@ -21,13 +21,14 @@ from app.models.bidder import Bidder
 from app.models.evidence import Evidence
 from app.models.document import Document
 from app.models.verdict import Verdict, Override, VerdictEnum
-from app.models.audit import AuditLog
+from app.services.audit_logger import log_action
 from app.schemas.evaluation import (
     MatrixResponse, MatrixCriterion, MatrixBidder, MatrixCell,
     EvidenceDetailResponse, OverrideHistoryItem,
 )
 from app.schemas.verdict import OverrideRequest, VerdictResponse
 from app.services.rules_engine import calculate_overall_verdict
+from app.workers.tasks import send_notifications
 
 router = APIRouter(tags=["evaluation"])
 
@@ -197,7 +198,8 @@ def override_verdict(
     # Phase Guide exit condition: every override must be independently
     # auditable, not just visible via the Override table -- this is
     # what makes the platform's decision trail legally defensible.
-    db.add(AuditLog(
+    log_action(
+        db,
         user_id=current_user.id,
         action="VERDICT_OVERRIDE",
         entity_type="verdict",
@@ -205,7 +207,7 @@ def override_verdict(
         old_value={"final_verdict": override.from_verdict.value},
         new_value={"final_verdict": override.to_verdict.value},
         ip_address=http_request.client.host if http_request.client else None,
-    ))
+    )
 
     db.commit()
     db.refresh(verdict)
@@ -220,6 +222,7 @@ def override_verdict(
 @router.post("/tenders/{tender_id}/complete")
 def mark_evaluation_complete(
     tender_id: int,
+    http_request: Request,
     current_user: User = Depends(require_role(RoleEnum.EVALUATOR.value)),
     db: Session = Depends(get_db),
 ):
@@ -238,7 +241,13 @@ def mark_evaluation_complete(
     tender = db.query(Tender).filter(Tender.id == tender_id).first()
     if tender is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tender not found")
-    
+
+    if tender.status == TenderStatus.TECHNICAL_COMPLETE:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This tender's evaluation has already been marked complete",
+        )
+
     if datetime.now(timezone.utc) < tender.deadline:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -268,6 +277,17 @@ def mark_evaluation_complete(
         )
 
     tender.status = TenderStatus.TECHNICAL_COMPLETE
+
+    log_action(
+        db,
+        user_id=current_user.id,
+        action="EVALUATION_COMPLETE",
+        entity_type="tender",
+        entity_id=tender.id,
+        ip_address=http_request.client.host if http_request.client else None,
+    )
     db.commit()
+
+    send_notifications.delay(tender.id)
 
     return {"message": "Evaluation marked complete", "tender_id": tender_id, "status": tender.status.value}
