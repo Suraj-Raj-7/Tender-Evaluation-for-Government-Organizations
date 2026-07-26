@@ -11,8 +11,9 @@
  * to react-i18next for EN/HI support.
  */
 
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Table, Tag, Button, Spin, Alert } from "antd";
+import { Table, Tag, Button, Spin, Alert, Modal, Select, message } from "antd";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import apiClient from "../api/client.js";
@@ -21,6 +22,11 @@ import AppLayout from "../components/AppLayout.jsx";
 
 async function fetchTenders() {
   const response = await apiClient.get("/tenders");
+  return response.data;
+}
+
+async function fetchEvaluators() {
+  const response = await apiClient.get("/tenders/evaluators");
   return response.data;
 }
 
@@ -46,11 +52,40 @@ function TenderList() {
   const { t } = useTranslation();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [assigningFor, setAssigningFor] = useState(null);
+  const [selectedEvaluatorId, setSelectedEvaluatorId] = useState(null);
+  const [assigning, setAssigning] = useState(false);
 
   const { data: tenders, isLoading, error } = useQuery({
     queryKey: ["tenders"],
     queryFn: fetchTenders,
   });
+
+  const { data: evaluators } = useQuery({
+    queryKey: ["evaluators"],
+    queryFn: fetchEvaluators,
+    enabled: !!assigningFor,
+  });
+
+  async function handleAssignEvaluator() {
+    if (!selectedEvaluatorId) {
+      message.warning("Select an evaluator first");
+      return;
+    }
+    setAssigning(true);
+    try {
+      await apiClient.post(`/tenders/${assigningFor.id}/evaluators`, {
+        user_id: selectedEvaluatorId,
+      });
+      message.success(`Evaluator assigned to ${assigningFor.name}`);
+      setAssigningFor(null);
+      setSelectedEvaluatorId(null);
+    } catch (err) {
+      message.error(err.response?.data?.detail || "Could not assign evaluator");
+    } finally {
+      setAssigning(false);
+    }
+  }
 
   const columns = [
     { title: t("tenderList.id"), dataIndex: "id", key: "id" },
@@ -92,9 +127,18 @@ function TenderList() {
             </Button>
           )}
           {user?.role === "PUBLISHER" && (
-            <Button size="small" onClick={() => navigate(`/tenders/${record.id}`)}>
-              {t("tenderList.manage")}
-            </Button>
+            <>
+              <Button size="small" onClick={() => navigate(`/tenders/${record.id}`)}>
+                {t("tenderList.manage")}
+              </Button>
+              <Button
+                size="small"
+                style={{ marginLeft: 8 }}
+                onClick={() => setAssigningFor(record)}
+              >
+                {t("tenderList.assignEvaluator")}
+              </Button>
+            </>
           )}
           {user?.role === "BIDDER" && (
             <Button size="small" onClick={() => navigate(`/bidder-portal`)}>
@@ -124,6 +168,23 @@ function TenderList() {
       {tenders && (
         <Table rowKey="id" columns={columns} dataSource={tenders} pagination={false} />
       )}
+
+      <Modal
+        title={assigningFor ? `${t("tenderList.assignEvaluator")} -- ${assigningFor.name}` : ""}
+        open={!!assigningFor}
+        onCancel={() => setAssigningFor(null)}
+        onOk={handleAssignEvaluator}
+        confirmLoading={assigning}
+        okText={t("tenderList.assign")}
+      >
+        <Select
+          style={{ width: "100%" }}
+          placeholder={t("tenderList.selectEvaluator")}
+          value={selectedEvaluatorId}
+          onChange={setSelectedEvaluatorId}
+          options={evaluators?.map((e) => ({ value: e.id, label: `${e.full_name} (${e.username})` }))}
+        />
+      </Modal>
     </AppLayout>
   );
 }

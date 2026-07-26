@@ -21,7 +21,10 @@
     "criteria": "मापदंड",
     "evaluate": "मूल्यांकन करें",
     "manage": "प्रबंधित करें",
-    "applyNow": "अभी आवेदन करें"
+    "applyNow": "अभी आवेदन करें",
+    "assignEvaluator": "मूल्यांकनकर्ता नियुक्त करें",
+    "selectEvaluator": "मूल्यांकनकर्ता चुनें",
+    "assign": "नियुक्त करें"
   },
   "createTender": {
     "title": "टेंडर बनाएं",

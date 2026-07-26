@@ -21,7 +21,10 @@
     "criteria": "Criteria",
     "evaluate": "Evaluate",
     "manage": "Manage",
-    "applyNow": "Apply Now"
+    "applyNow": "Apply Now",
+    "assignEvaluator": "Assign Evaluator",
+    "selectEvaluator": "Select an evaluator",
+    "assign": "Assign"
   },
   "createTender": {
     "title": "Create Tender",
