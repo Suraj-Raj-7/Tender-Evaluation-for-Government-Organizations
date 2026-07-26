@@ -19,6 +19,7 @@ from app.dependencies import require_role
 from app.models.user import User, RoleEnum
 from app.schemas.user import AdminUserCreate, AdminUserStatusUpdate, UserResponse
 from app.security import hash_password, generate_temp_password
+from app.services.email_service import send_email
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -69,6 +70,18 @@ def create_officer_account(
     print(f"  Temporary password: {temp_password}")
     print("  User must change this on first login.")
     print("=" * 60)
+
+    send_email(
+        to_email=request.email,
+        subject="Your TenderIQ account has been created",
+        html_body=f"""
+            <h2>Welcome to TenderIQ</h2>
+            <p>An account has been created for you as a <strong>{request.role.value}</strong>.</p>
+            <p><strong>Username:</strong> {request.username}<br>
+            <strong>Temporary password:</strong> {temp_password}</p>
+            <p>You must change this password on your first login.</p>
+        """,
+    )
 
     return new_user
 
@@ -150,4 +163,15 @@ def reset_user_password(
     print(f"  New temporary password: {temp_password}")
     print("=" * 60)
 
-    return {"message": "Password reset successfully. New credentials printed to server console."}
+    send_email(
+        to_email=user.email,
+        subject="Your TenderIQ password has been reset",
+        html_body=f"""
+            <h2>Password Reset</h2>
+            <p>Your TenderIQ password was reset by an administrator.</p>
+            <p><strong>New temporary password:</strong> {temp_password}</p>
+            <p>You must change this password on your next login.</p>
+        """,
+    )
+
+    return {"message": "Password reset successfully. New credentials sent by email."}

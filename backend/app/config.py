@@ -48,6 +48,17 @@ class Settings(BaseSettings):
     # Password for the very first admin account, created once by seed.py.
     FIRST_ADMIN_PASSWORD: str
 
+    # SMTP settings for sending real emails (account credentials,
+    # evaluation-complete notifications). Used by services/email_service.py.
+    # Point these at Mailtrap's sandbox for local development/testing --
+    # swapping to a real production SMTP provider later requires only
+    # changing these 5 values in .env, no code changes.
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 2525
+    SMTP_USERNAME: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM: str = "TenderIQ <noreply@tenderiq.local>"
+
     # When True, enables extra debug behavior (e.g. dev-only routes).
     DEBUG: bool = False
 
