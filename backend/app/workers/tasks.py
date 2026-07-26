@@ -36,6 +36,7 @@ from app.services.ocr import extract_text
 from app.services.tender_parser import extract_criteria
 from app.services.bidder_parser import extract_evidence
 from app.services.rules_engine import evaluate_evidence, calculate_overall_verdict
+from app.services.notifications import send_evaluation_notifications
 
 
 def _run_ocr_and_save(document: Document, db) -> str:
@@ -260,5 +261,30 @@ def process_bidder_documents(job_id: str):
             job.error_message = str(e)
             job.finished_at = datetime.now(timezone.utc)
             db.commit()
+    finally:
+        db.close()
+        
+@celery_app.task(name="send_notifications")
+def send_notifications(tender_id: int):
+    """
+    Purpose: Background task that sends the simultaneous result email
+    to every bidder on a tender, right after evaluation is marked
+    complete. Runs in the Celery worker process so the HTTP response
+    to the Evaluator who clicked "Mark Complete" isn't held up by
+    email sending.
+
+    Where it gets its data: tender_id is passed in by
+    routers/evaluation.py's mark_evaluation_complete() endpoint, via
+    .delay(tender_id), right after the tender's status is already
+    committed as TECHNICAL_COMPLETE.
+
+    Where it's used: queued by routers/evaluation.py. Never called
+    directly -- always via .delay().
+    """
+    db = SessionLocal()
+    try:
+        send_evaluation_notifications(tender_id, db)
+    except Exception as e:
+        print(f"[tasks.py] send_notifications failed for tender {tender_id}: {e}")
     finally:
         db.close()
