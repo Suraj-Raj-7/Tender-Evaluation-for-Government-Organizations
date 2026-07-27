@@ -26,8 +26,17 @@ from app.models.evidence import Evidence
 from app.models.criterion import Criterion
 from app.models.verdict import Verdict, VerdictEnum
 from app.models.document import Document
+import time
+
 from app.services.email_service import send_email
 from app.services.audit_logger import log_action
+
+
+# Small delay between each bidder's email, so a tender with many
+# bidders doesn't fire them all in the same instant and trip an SMTP
+# provider's per-second rate limit (observed with Mailtrap's free
+# Sandbox plan during testing, but this applies to most providers).
+_SECONDS_BETWEEN_EMAILS = 1.5
 
 
 def _get_failed_mandatory_criteria(bidder_id: int, db) -> list[dict]:
@@ -187,5 +196,9 @@ def send_evaluation_notifications(tender_id: int, db) -> None:
                 entity_id=bidder.id,
                 new_value={"overall_verdict": bidder.overall_verdict.value, "email": user.email},
             )
+        else:
+            print(f"[notifications.py] Email to bidder {bidder.id} ({user.email}) failed -- not logged as sent")
+
+        time.sleep(_SECONDS_BETWEEN_EMAILS)
 
     db.commit()
