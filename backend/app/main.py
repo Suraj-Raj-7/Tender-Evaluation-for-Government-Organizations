@@ -18,7 +18,7 @@ from app.seed import run_seed
 from app.config import settings
 from app.routers import (
     auth, admin, tenders, criteria, bidders, jobs,
-    grievances, audit, documents, evaluation,
+    grievances, audit, documents, evaluation, reports,
 )
 
 app = FastAPI(title="TenderIQ API", version="1.0.0")
@@ -44,6 +44,7 @@ app.include_router(grievances.router)
 app.include_router(audit.router)
 app.include_router(documents.router)
 app.include_router(evaluation.router)
+app.include_router(reports.router)
 
 # Only registered when DEBUG=true in .env -- lets us test OCR directly
 # without Celery, but is never reachable in a real deployment.
