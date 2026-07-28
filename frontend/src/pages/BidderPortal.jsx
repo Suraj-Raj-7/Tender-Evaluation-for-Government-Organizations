@@ -11,12 +11,14 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Table, Tag, Button, Spin, Alert, Modal, Upload, message } from "antd";
+import { Table, Tag, Button, Spin, Alert, Modal, Upload, Input, message } from "antd";
 import { UploadOutlined } from "@ant-design/icons";
 import { useTranslation } from "react-i18next";
 import apiClient from "../api/client.js";
 import AppLayout from "../components/AppLayout.jsx";
 import JobStatusPoller from "../components/JobStatusPoller.jsx";
+
+const { TextArea } = Input;
 
 async function fetchMyApplications() {
   const response = await apiClient.get("/bidders/me");
@@ -29,11 +31,34 @@ function BidderPortal() {
   const [files, setFiles] = useState([]);
   const [jobId, setJobId] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [grievanceFor, setGrievanceFor] = useState(null);
+  const [grievanceText, setGrievanceText] = useState("");
+  const [submittingGrievance, setSubmittingGrievance] = useState(false);
 
   const { data: applications, isLoading, error, refetch } = useQuery({
     queryKey: ["myApplications"],
     queryFn: fetchMyApplications,
   });
+
+  async function handleSubmitGrievance() {
+    if (grievanceText.trim().length < 20) {
+      message.warning("Description must be at least 20 characters");
+      return;
+    }
+    setSubmittingGrievance(true);
+    try {
+      await apiClient.post(`/grievances?tender_id=${grievanceFor.tender_id}`, {
+        description: grievanceText,
+      });
+      message.success("Grievance submitted");
+      setGrievanceFor(null);
+      setGrievanceText("");
+    } catch (err) {
+      message.error(err.response?.data?.detail || "Could not submit grievance");
+    } finally {
+      setSubmittingGrievance(false);
+    }
+  }
 
   async function handleUpload() {
     if (files.length === 0) {
@@ -68,7 +93,24 @@ function BidderPortal() {
         MANUAL_REVIEW: "gold",
         PENDING: "default",
       }[record.overall_verdict];
-      return <Tag color={verdictColor}>{record.overall_verdict}</Tag>;
+
+      return (
+        <>
+          <Tag color={verdictColor}>{record.overall_verdict}</Tag>
+          {record.overall_verdict === "NOT_ELIGIBLE" && (
+            <Button
+              size="small"
+              style={{ marginLeft: 8 }}
+              onClick={() => {
+                setGrievanceFor(record);
+                setGrievanceText("");
+              }}
+            >
+              {t("bidderPortal.raiseGrievance")}
+            </Button>
+          )}
+        </>
+      );
     }
 
     if (deadlinePassed) {
@@ -153,6 +195,25 @@ function BidderPortal() {
             }}
           />
         )}
+      </Modal>
+
+      <Modal
+        title={grievanceFor ? `${t("bidderPortal.raiseGrievance")} -- ${grievanceFor.tender_name}` : ""}
+        open={!!grievanceFor}
+        onCancel={() => setGrievanceFor(null)}
+        onOk={handleSubmitGrievance}
+        confirmLoading={submittingGrievance}
+        okText={t("bidderPortal.submitGrievance")}
+      >
+        <p style={{ color: "#666", fontSize: 13 }}>
+          {t("bidderPortal.grievanceHelp")}
+        </p>
+        <TextArea
+          rows={5}
+          placeholder={t("bidderPortal.grievancePlaceholder")}
+          value={grievanceText}
+          onChange={(e) => setGrievanceText(e.target.value)}
+        />
       </Modal>
     </AppLayout>
   );
