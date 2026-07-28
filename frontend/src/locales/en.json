@@ -20,6 +20,7 @@
     "deadline": "Deadline",
     "criteria": "Criteria",
     "evaluate": "Evaluate",
+    "viewMatrix": "View Matrix",
     "manage": "Manage",
     "applyNow": "Apply Now",
     "assignEvaluator": "Assign Evaluator",
@@ -44,6 +45,9 @@
     "manualReview": "Manual Review",
     "totalBidders": "Total Bidders",
     "markComplete": "Mark Evaluation Complete",
+    "evaluationAlreadyComplete": "Evaluation Complete",
+    "exportAuditBundle": "Export Audit Bundle",
+    "exportTqList": "Export TQ List",
     "bidder": "Bidder",
     "overall": "Overall"
   },
@@ -73,7 +77,11 @@
     "uploadDocuments": "Upload Documents",
     "awaitingEvaluation": "Awaiting evaluation",
     "selectFiles": "Select Files",
-    "upload": "Upload"
+    "upload": "Upload",
+    "raiseGrievance": "Raise Grievance",
+    "submitGrievance": "Submit Grievance",
+    "grievanceHelp": "Describe why you believe this evaluation result is incorrect (minimum 20 characters). This will be reviewed by an auditor; it does not reopen evaluation or allow new documents.",
+    "grievancePlaceholder": "Explain your objection..."
   },
   "adminPanel": {
     "title": "Admin Panel",
@@ -101,7 +109,16 @@
     "action": "Action",
     "entityType": "Entity Type",
     "entityId": "Entity ID",
-    "oldToNew": "Old -> New"
+    "oldToNew": "Old -> New",
+    "details": "Details",
+    "extractionErrors": "Extraction Errors",
+    "allActionsTab": "All Actions",
+    "overridesTab": "Overrides",
+    "officer": "Officer",
+    "tender": "Tender",
+    "bidder": "Bidder",
+    "criterion": "Criterion",
+    "reason": "Reason"
   },
   "registerBidder": {
     "title": "Register as Bidder",

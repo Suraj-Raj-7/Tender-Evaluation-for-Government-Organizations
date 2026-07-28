@@ -20,6 +20,7 @@
     "deadline": "अंतिम तिथि",
     "criteria": "मापदंड",
     "evaluate": "मूल्यांकन करें",
+    "viewMatrix": "मैट्रिक्स देखें",
     "manage": "प्रबंधित करें",
     "applyNow": "अभी आवेदन करें",
     "assignEvaluator": "मूल्यांकनकर्ता नियुक्त करें",
@@ -44,6 +45,9 @@
     "manualReview": "मैन्युअल समीक्षा",
     "totalBidders": "कुल बोलीदाता",
     "markComplete": "मूल्यांकन पूर्ण करें",
+    "evaluationAlreadyComplete": "मूल्यांकन पूर्ण हो गया",
+    "exportAuditBundle": "ऑडिट बंडल निर्यात करें",
+    "exportTqList": "टीक्यू सूची निर्यात करें",
     "bidder": "बोलीदाता",
     "overall": "समग्र"
   },
@@ -73,7 +77,11 @@
     "uploadDocuments": "दस्तावेज़ अपलोड करें",
     "awaitingEvaluation": "मूल्यांकन की प्रतीक्षा में",
     "selectFiles": "फ़ाइलें चुनें",
-    "upload": "अपलोड करें"
+    "upload": "अपलोड करें",
+    "raiseGrievance": "शिकायत दर्ज करें",
+    "submitGrievance": "शिकायत सबमिट करें",
+    "grievanceHelp": "बताएं कि आप इस मूल्यांकन परिणाम को गलत क्यों मानते हैं (न्यूनतम 20 अक्षर)। इसकी समीक्षा एक ऑडिटर द्वारा की जाएगी; यह मूल्यांकन को फिर से नहीं खोलता और न ही नए दस्तावेज़ों की अनुमति देता है।",
+    "grievancePlaceholder": "अपनी आपत्ति स्पष्ट करें..."
   },
   "adminPanel": {
     "title": "एडमिन पैनल",
@@ -101,7 +109,16 @@
     "action": "कार्रवाई",
     "entityType": "इकाई प्रकार",
     "entityId": "इकाई आईडी",
-    "oldToNew": "पुराना -> नया"
+    "oldToNew": "पुराना -> नया",
+    "details": "विवरण",
+    "extractionErrors": "निष्कर्षण त्रुटियां",
+    "allActionsTab": "सभी कार्रवाइयां",
+    "overridesTab": "ओवरराइड",
+    "officer": "अधिकारी",
+    "tender": "टेंडर",
+    "bidder": "बोलीदाता",
+    "criterion": "मापदंड",
+    "reason": "कारण"
   },
   "registerBidder": {
     "title": "बोलीदाता के रूप में पंजीकरण करें",

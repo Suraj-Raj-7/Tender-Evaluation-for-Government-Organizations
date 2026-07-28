@@ -13,7 +13,8 @@
 import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Table, Card, Row, Col, Statistic, Button, Spin, Alert, message, Tooltip } from "antd";
+import { Table, Card, Row, Col, Statistic, Button, Spin, Alert, message, Tooltip, Space } from "antd";
+import { DownloadOutlined } from "@ant-design/icons";
 import { useTranslation } from "react-i18next";
 import apiClient from "../api/client.js";
 import AppLayout from "../components/AppLayout.jsx";
@@ -24,6 +25,35 @@ import { useAuth } from "../context/AuthContext.jsx";
 async function fetchMatrix(tenderId) {
   const response = await apiClient.get(`/tenders/${tenderId}/matrix`);
   return response.data;
+}
+
+async function fetchTender(tenderId) {
+  const response = await apiClient.get(`/tenders/${tenderId}`);
+  return response.data;
+}
+
+/**
+ * Purpose: Downloads a PDF report from the backend and triggers the
+ * browser's native "save file" behavior. Axios itself can't save a
+ * file to disk -- this fetches the PDF as a blob (raw binary), builds
+ * a temporary in-memory URL for it, and clicks a hidden link to it,
+ * which is the standard way to force a download from JS.
+ *
+ * Where it gets its data: url and filename are passed in by the two
+ * export button handlers below. apiClient's request interceptor
+ * still attaches the JWT automatically, same as any other call.
+ *
+ * Where it's used: called by handleExportAuditBundle() and
+ * handleExportTQList() below.
+ */
+async function downloadReport(url, filename) {
+  const response = await apiClient.get(url, { responseType: "blob" });
+  const blobUrl = URL.createObjectURL(response.data);
+  const link = document.createElement("a");
+  link.href = blobUrl;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(blobUrl);
 }
 
 function countByOverallVerdict(bidders) {
@@ -39,19 +69,59 @@ function EvaluationMatrix() {
   const { tenderId } = useParams();
   const { user } = useAuth();
   const [selectedEvidenceId, setSelectedEvidenceId] = useState(null);
+  const [exportingAuditBundle, setExportingAuditBundle] = useState(false);
+  const [exportingTqList, setExportingTqList] = useState(false);
 
   const { data: matrixData, isLoading, error, refetch } = useQuery({
     queryKey: ["matrix", tenderId],
     queryFn: () => fetchMatrix(tenderId),
   });
 
+  const { data: tenderData, refetch: refetchTender } = useQuery({
+    queryKey: ["tender", tenderId],
+    queryFn: () => fetchTender(tenderId),
+  });
+
+  const isAlreadyComplete = tenderData?.status === "TECHNICAL_COMPLETE";
+
   async function handleMarkComplete() {
     try {
       await apiClient.post(`/tenders/${tenderId}/complete`);
       message.success("Evaluation marked complete");
       refetch();
+      refetchTender();
     } catch (err) {
       message.error(err.response?.data?.detail || "Could not mark complete");
+    }
+  }
+
+  async function handleExportAuditBundle() {
+    setExportingAuditBundle(true);
+    try {
+      await downloadReport(
+        `/reports/${tenderId}/audit-bundle`,
+        `audit_bundle_tender_${tenderId}.pdf`
+      );
+      message.success("Audit bundle downloaded");
+    } catch (err) {
+      message.error(err.response?.data?.detail || "Could not export audit bundle");
+    } finally {
+      setExportingAuditBundle(false);
+    }
+  }
+
+  async function handleExportTqList() {
+    setExportingTqList(true);
+    try {
+      await downloadReport(
+        `/reports/${tenderId}/tq-list`,
+        `tq_list_tender_${tenderId}.pdf`
+      );
+      message.success("TQ list downloaded");
+    } catch (err) {
+      message.error(err.response?.data?.detail || "Could not export TQ list");
+    } finally {
+      setExportingTqList(false);
     }
   }
 
@@ -104,11 +174,35 @@ function EvaluationMatrix() {
         <Col span={6}><Card><Statistic title={t("matrix.totalBidders")} value={matrixData.bidders.length} /></Card></Col>
       </Row>
 
-      {user?.role === "EVALUATOR" && (
-        <Button type="primary" style={{ marginBottom: 16 }} onClick={handleMarkComplete}>
-          {t("matrix.markComplete")}
-        </Button>
-      )}
+      <Space style={{ marginBottom: 16 }}>
+        {user?.role === "EVALUATOR" && (
+          isAlreadyComplete ? (
+            <Button disabled>{t("matrix.evaluationAlreadyComplete")}</Button>
+          ) : (
+            <Button type="primary" onClick={handleMarkComplete}>
+              {t("matrix.markComplete")}
+            </Button>
+          )
+        )}
+        {(user?.role === "EVALUATOR" || user?.role === "AUDITOR") && (
+          <>
+            <Button
+              icon={<DownloadOutlined />}
+              loading={exportingAuditBundle}
+              onClick={handleExportAuditBundle}
+            >
+              {t("matrix.exportAuditBundle")}
+            </Button>
+            <Button
+              icon={<DownloadOutlined />}
+              loading={exportingTqList}
+              onClick={handleExportTqList}
+            >
+              {t("matrix.exportTqList")}
+            </Button>
+          </>
+        )}
+      </Space>
 
       <Table
         rowKey="id"

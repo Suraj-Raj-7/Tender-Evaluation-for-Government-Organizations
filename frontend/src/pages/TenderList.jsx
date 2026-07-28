@@ -126,6 +126,11 @@ function TenderList() {
               {t("tenderList.evaluate")}
             </Button>
           )}
+          {user?.role === "AUDITOR" && (
+            <Button size="small" onClick={() => navigate(`/tenders/${record.id}/matrix`)}>
+              {t("tenderList.viewMatrix")}
+            </Button>
+          )}
           {user?.role === "PUBLISHER" && (
             <>
               <Button size="small" onClick={() => navigate(`/tenders/${record.id}`)}>
