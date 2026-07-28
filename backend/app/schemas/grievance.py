@@ -22,12 +22,33 @@ class GrievanceCreate(BaseModel):
 
 class GrievanceResponse(BaseModel):
     """
-    Purpose: Shape of grievance data returned to bidders and auditors.
-    Where it's used: Returned by GET /grievances and GET /grievances/{id}.
+    Purpose: Shape of grievance data returned to bidders and auditors
+    in list views.
+    Where it's used: Returned by GET /grievances.
     """
     id: int
     status: GrievanceStatus
     submitted_at: datetime
     description: str
+
+    model_config = {"from_attributes": True}
+
+
+class GrievanceDetailResponse(BaseModel):
+    """
+    Purpose: Fuller shape of one grievance, including which tender and
+    bidder it belongs to and any resolution notes -- more than the
+    list view needs, but exactly what a single-grievance detail page
+    should show.
+    Where it's used: Returned by GET /grievances/{id}.
+    """
+    id: int
+    tender_id: int
+    bidder_id: int
+    status: GrievanceStatus
+    description: str
+    submitted_at: datetime
+    resolved_at: datetime | None
+    resolution_notes: str | None
 
     model_config = {"from_attributes": True}
