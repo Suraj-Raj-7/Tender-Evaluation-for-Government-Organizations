@@ -11,6 +11,7 @@ import Login from "./pages/Login.jsx";
 import RegisterBidder from "./pages/RegisterBidder.jsx";
 import TenderList from "./pages/TenderList.jsx";
 import CreateTender from "./pages/CreateTender.jsx";
+import TenderDetail from "./pages/TenderDetail.jsx";
 import EvaluationMatrix from "./pages/EvaluationMatrix.jsx";
 import BidderPortal from "./pages/BidderPortal.jsx";
 import AdminPanel from "./pages/AdminPanel.jsx";
@@ -37,6 +38,12 @@ function App() {
       <Route
         path="/tenders/create"
         element={<RoleGuard allowedRoles={["PUBLISHER"]}><CreateTender /></RoleGuard>}
+      />
+
+      {/* Publisher only -- tender management (corrigendum, criteria view) */}
+      <Route
+        path="/tenders/:tenderId"
+        element={<RoleGuard allowedRoles={["PUBLISHER"]}><TenderDetail /></RoleGuard>}
       />
 
       {/* Evaluator + Auditor only */}
