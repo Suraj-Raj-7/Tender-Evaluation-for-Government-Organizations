@@ -120,7 +120,22 @@
     "criterion": "मापदंड",
     "reason": "कारण"
   },
-  "registerBidder": {
+  "grievances": {
+      "title": "शिकायतें",
+      "id": "आईडी",
+      "grievance": "शिकायत",
+      "description": "विवरण",
+      "submittedAt": "सबमिट किया गया",
+      "resolvedAt": "हल किया गया",
+      "resolutionNotes": "समाधान टिप्पणियां",
+      "resolutionNotesPlaceholder": "समीक्षा/समाधान पर टिप्पणियां...",
+      "tenderId": "टेंडर आईडी",
+      "review": "समीक्षा करें",
+      "updateStatus": "स्थिति अपडेट करें",
+      "selectNewStatus": "नई स्थिति चुनें",
+      "save": "सहेजें"
+    },
+    "registerBidder": {
     "title": "बोलीदाता के रूप में पंजीकरण करें",
     "companyName": "कंपनी का नाम",
     "gstin": "जीएसटीआईएन",

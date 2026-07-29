@@ -120,7 +120,22 @@
     "criterion": "Criterion",
     "reason": "Reason"
   },
-  "registerBidder": {
+  "grievances": {
+      "title": "Grievances",
+      "id": "ID",
+      "grievance": "Grievance",
+      "description": "Description",
+      "submittedAt": "Submitted At",
+      "resolvedAt": "Resolved At",
+      "resolutionNotes": "Resolution Notes",
+      "resolutionNotesPlaceholder": "Notes on how this was reviewed/resolved...",
+      "tenderId": "Tender ID",
+      "review": "Review",
+      "updateStatus": "Update Status",
+      "selectNewStatus": "Select new status",
+      "save": "Save"
+    },
+    "registerBidder": {
     "title": "Register as Bidder",
     "companyName": "Company Name",
     "gstin": "GSTIN",

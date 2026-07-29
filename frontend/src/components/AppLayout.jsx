@@ -35,6 +35,9 @@ function getNavItemsForRole(role) {
   if (role === "AUDITOR" || role === "SYSTEM_ADMIN") {
     items.push({ key: "/audit-log", label: "Audit Log" });
   }
+  if (role === "AUDITOR") {
+    items.push({ key: "/grievances", label: "Grievances" });
+  }
 
   return items;
 }

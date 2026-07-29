@@ -15,6 +15,7 @@ import EvaluationMatrix from "./pages/EvaluationMatrix.jsx";
 import BidderPortal from "./pages/BidderPortal.jsx";
 import AdminPanel from "./pages/AdminPanel.jsx";
 import AuditLog from "./pages/AuditLog.jsx";
+import GrievancesPage from "./pages/GrievancesPage.jsx";
 import RoleGuard from "./components/RoleGuard.jsx";
 
 const ALL_ROLES = ["SYSTEM_ADMIN", "PUBLISHER", "BIDDER", "EVALUATOR", "AUDITOR"];
@@ -60,6 +61,12 @@ function App() {
       <Route
         path="/audit-log"
         element={<RoleGuard allowedRoles={["AUDITOR", "SYSTEM_ADMIN"]}><AuditLog /></RoleGuard>}
+      />
+
+      {/* Auditor only, matching backend's grievance-review permissions */}
+      <Route
+        path="/grievances"
+        element={<RoleGuard allowedRoles={["AUDITOR"]}><GrievancesPage /></RoleGuard>}
       />
 
       <Route path="/" element={<Navigate to="/login" replace />} />
