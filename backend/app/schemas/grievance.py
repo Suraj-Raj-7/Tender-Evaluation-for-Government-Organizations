@@ -22,9 +22,8 @@ class GrievanceCreate(BaseModel):
 
 class GrievanceResponse(BaseModel):
     """
-    Purpose: Shape of grievance data returned to bidders and auditors
-    in list views.
-    Where it's used: Returned by GET /grievances.
+    Purpose: Shape of grievance data returned to bidders and auditors.
+    Where it's used: Returned by GET /grievances and GET /grievances/{id}.
     """
     id: int
     status: GrievanceStatus
@@ -32,6 +31,18 @@ class GrievanceResponse(BaseModel):
     description: str
 
     model_config = {"from_attributes": True}
+
+
+class GrievanceStatusUpdate(BaseModel):
+    """
+    Purpose: Shape of an Auditor's request to update a grievance's
+    status and add resolution notes -- closing the loop on a
+    complaint that was previously only ever submitted, never resolved.
+
+    Where it's used: PATCH /grievances/{id} request body (Auditor only).
+    """
+    status: GrievanceStatus
+    resolution_notes: str | None = None
 
 
 class GrievanceDetailResponse(BaseModel):

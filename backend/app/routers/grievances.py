@@ -6,6 +6,7 @@ lets auditors/bidders view grievances. Per spec 5.8, this only logs the
 complaint -- it never reopens evaluation.
 """
 
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
@@ -14,8 +15,10 @@ from app.dependencies import get_current_user, require_role
 from app.models.user import User, RoleEnum
 from app.models.bidder import Bidder
 from app.models.tender import Tender, TenderStatus
-from app.models.grievance import Grievance
-from app.schemas.grievance import GrievanceCreate, GrievanceResponse, GrievanceDetailResponse
+from app.models.grievance import Grievance, GrievanceStatus
+from app.schemas.grievance import (
+    GrievanceCreate, GrievanceResponse, GrievanceDetailResponse, GrievanceStatusUpdate,
+)
 from app.services.audit_logger import log_action
 
 router = APIRouter(prefix="/grievances", tags=["grievances"])
@@ -130,4 +133,51 @@ def get_grievance_detail(
     elif current_user.role != RoleEnum.AUDITOR:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not permitted to view this grievance")
 
+    return grievance
+
+
+@router.patch("/{grievance_id}", response_model=GrievanceDetailResponse)
+def update_grievance_status(
+    grievance_id: int,
+    request: GrievanceStatusUpdate,
+    http_request: Request,
+    current_user: User = Depends(require_role(RoleEnum.AUDITOR.value)),
+    db: Session = Depends(get_db),
+):
+    """
+    Purpose: Lets an Auditor move a grievance through its review
+    lifecycle (SUBMITTED -> UNDER_REVIEW -> RESOLVED) and record
+    resolution notes -- closing the loop that submit_grievance() and
+    the database schema always supported but nothing previously acted on.
+
+    Where it gets its data: grievance_id from the URL. request.status
+    and request.resolution_notes come from the Auditor's review form.
+
+    Note: this does NOT reopen evaluation or allow new documents --
+    per spec 5.8, a grievance is a formal objection on record, not a
+    mechanism to re-trigger the technical evaluation pipeline.
+    """
+    grievance = db.query(Grievance).filter(Grievance.id == grievance_id).first()
+    if grievance is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Grievance not found")
+
+    old_status = grievance.status.value
+    grievance.status = request.status
+    if request.resolution_notes is not None:
+        grievance.resolution_notes = request.resolution_notes
+    if request.status == GrievanceStatus.RESOLVED:
+        grievance.resolved_at = datetime.now(timezone.utc)
+
+    log_action(
+        db,
+        user_id=current_user.id,
+        action="GRIEVANCE_RESOLVED",
+        entity_type="grievance",
+        entity_id=grievance.id,
+        old_value={"status": old_status},
+        new_value={"status": request.status.value},
+        ip_address=http_request.client.host if http_request.client else None,
+    )
+    db.commit()
+    db.refresh(grievance)
     return grievance
