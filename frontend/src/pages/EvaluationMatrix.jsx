@@ -13,7 +13,8 @@
 import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Table, Card, Row, Col, Statistic, Button, Spin, Alert, message, Tooltip, Space } from "antd";
+import { Table, Card, Row, Col, Statistic, Button, Spin, Alert, message, Tooltip, Space, Modal } from "antd";
+import { ExclamationCircleFilled } from "@ant-design/icons";
 import { DownloadOutlined } from "@ant-design/icons";
 import { useTranslation } from "react-i18next";
 import apiClient from "../api/client.js";
@@ -84,7 +85,7 @@ function EvaluationMatrix() {
 
   const isAlreadyComplete = tenderData?.status === "TECHNICAL_COMPLETE";
 
-  async function handleMarkComplete() {
+  async function performMarkComplete() {
     try {
       await apiClient.post(`/tenders/${tenderId}/complete`);
       message.success("Evaluation marked complete");
@@ -93,6 +94,18 @@ function EvaluationMatrix() {
     } catch (err) {
       message.error(err.response?.data?.detail || "Could not mark complete");
     }
+  }
+
+  function handleMarkComplete() {
+    Modal.confirm({
+      title: t("matrix.confirmCompleteTitle"),
+      icon: <ExclamationCircleFilled />,
+      content: t("matrix.confirmCompleteBody"),
+      okText: t("matrix.confirmCompleteOk"),
+      okType: "danger",
+      cancelText: t("matrix.confirmCompleteCancel"),
+      onOk: performMarkComplete,
+    });
   }
 
   async function handleExportAuditBundle() {
