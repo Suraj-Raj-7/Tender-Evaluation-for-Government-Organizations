@@ -46,6 +46,10 @@
     "totalBidders": "कुल बोलीदाता",
     "markComplete": "मूल्यांकन पूर्ण करें",
     "evaluationAlreadyComplete": "मूल्यांकन पूर्ण हो गया",
+    "confirmCompleteTitle": "मूल्यांकन पूर्ण करें?",
+    "confirmCompleteBody": "इसे पूर्ववत नहीं किया जा सकता। सभी बोलीदाताओं को तुरंत ईमेल द्वारा उनके अंतिम परिणाम की सूचना दी जाएगी, और इस टेंडर की स्थिति में कोई और बदलाव संभव नहीं होगा।",
+    "confirmCompleteOk": "हां, पूर्ण करें",
+    "confirmCompleteCancel": "रद्द करें",
     "exportAuditBundle": "ऑडिट बंडल निर्यात करें",
     "exportTqList": "टीक्यू सूची निर्यात करें",
     "bidder": "बोलीदाता",
@@ -120,7 +124,23 @@
     "criterion": "मापदंड",
     "reason": "कारण"
   },
-  "grievances": {
+  "tenderDetail": {
+      "criteriaList": "पात्रता मापदंड",
+      "corrigendumHistory": "संशोधन इतिहास",
+      "noCorrigenda": "अभी तक कोई संशोधन जारी नहीं किया गया",
+      "issueCorrigendum": "संशोधन जारी करें",
+      "corrigendumDescriptionPlaceholder": "संशोधन का विवरण दें...",
+      "materialChange": "महत्वपूर्ण परिवर्तन (मापदंड/अंतिम तिथि बदली गई)",
+      "materialChangeHelp": "सक्षम होने पर, नई अंतिम तिथि सेट होती है और बोलीदाता दस्तावेज़ पुनः जमा कर सकते हैं",
+      "newDeadline": "नई अंतिम तिथि",
+      "issueButton": "संशोधन जारी करें",
+      "issuedAt": "जारी किया गया",
+      "material": "प्रकार",
+      "materialYes": "महत्वपूर्ण",
+      "materialNo": "स्पष्टीकरण",
+      "category": "श्रेणी"
+    },
+    "grievances": {
       "title": "शिकायतें",
       "id": "आईडी",
       "grievance": "शिकायत",

@@ -46,6 +46,10 @@
     "totalBidders": "Total Bidders",
     "markComplete": "Mark Evaluation Complete",
     "evaluationAlreadyComplete": "Evaluation Complete",
+    "confirmCompleteTitle": "Mark evaluation complete?",
+    "confirmCompleteBody": "This cannot be undone. All bidders will be notified immediately by email with their final result, and no further changes to this tender's status will be possible.",
+    "confirmCompleteOk": "Yes, mark complete",
+    "confirmCompleteCancel": "Cancel",
     "exportAuditBundle": "Export Audit Bundle",
     "exportTqList": "Export TQ List",
     "bidder": "Bidder",
@@ -120,7 +124,23 @@
     "criterion": "Criterion",
     "reason": "Reason"
   },
-  "grievances": {
+  "tenderDetail": {
+      "criteriaList": "Eligibility Criteria",
+      "corrigendumHistory": "Corrigendum History",
+      "noCorrigenda": "No corrigenda issued yet",
+      "issueCorrigendum": "Issue Corrigendum",
+      "corrigendumDescriptionPlaceholder": "Describe the amendment...",
+      "materialChange": "Material Change (criteria/deadline changed)",
+      "materialChangeHelp": "If enabled, sets a new deadline and allows bidders to resubmit documents",
+      "newDeadline": "New Deadline",
+      "issueButton": "Issue Corrigendum",
+      "issuedAt": "Issued At",
+      "material": "Type",
+      "materialYes": "Material",
+      "materialNo": "Clarification",
+      "category": "Category"
+    },
+    "grievances": {
       "title": "Grievances",
       "id": "ID",
       "grievance": "Grievance",
