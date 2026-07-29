@@ -24,6 +24,7 @@ function AdminPanel() {
   const { t } = useTranslation();
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [resettingUserId, setResettingUserId] = useState(null);
   const [form] = Form.useForm();
 
   const { data: users, isLoading, refetch } = useQuery({
@@ -57,11 +58,14 @@ function AdminPanel() {
   }
 
   async function handleResetPassword(userId) {
+    setResettingUserId(userId);
     try {
       await apiClient.post(`/admin/users/${userId}/reset-password`);
-      message.success("Password reset. New temporary password printed to server console.");
+      message.success("Password reset. New credentials sent by email.");
     } catch (err) {
       message.error("Could not reset password");
+    } finally {
+      setResettingUserId(null);
     }
   }
 
@@ -83,7 +87,12 @@ function AdminPanel() {
           <Button size="small" onClick={() => handleToggleStatus(record.id, !record.is_active)}>
             {record.is_active ? t("adminPanel.deactivate") : t("adminPanel.reactivate")}
           </Button>
-          <Button size="small" onClick={() => handleResetPassword(record.id)}>
+          <Button
+            size="small"
+            loading={resettingUserId === record.id}
+            disabled={resettingUserId !== null && resettingUserId !== record.id}
+            onClick={() => handleResetPassword(record.id)}
+          >
             {t("adminPanel.resetPassword")}
           </Button>
         </Space>
