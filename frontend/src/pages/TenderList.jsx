@@ -14,6 +14,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Table, Tag, Button, Spin, Alert, Modal, Select, message } from "antd";
+import { FileTextOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import apiClient from "../api/client.js";
@@ -28,6 +29,27 @@ async function fetchTenders() {
 async function fetchEvaluators() {
   const response = await apiClient.get("/tenders/evaluators");
   return response.data;
+}
+
+/**
+ * Purpose: Looks up a tender's NIT document metadata, then downloads
+ * its actual bytes (through the authenticated apiClient, same pattern
+ * as DocumentViewer.jsx) and opens it in a new browser tab.
+ *
+ * Where it's used: called by the "View NIT" button below, for any
+ * role browsing the tender list.
+ */
+async function viewNitDocument(tenderId) {
+  try {
+    const metaResponse = await apiClient.get(`/tenders/${tenderId}/document`);
+    const fileResponse = await apiClient.get(`/documents/${metaResponse.data.id}`, {
+      responseType: "blob",
+    });
+    const blobUrl = URL.createObjectURL(fileResponse.data);
+    window.open(blobUrl, "_blank");
+  } catch (err) {
+    message.error(err.response?.data?.detail || "Could not open NIT document");
+  }
 }
 
 /**
@@ -56,10 +78,20 @@ function TenderList() {
   const [selectedEvaluatorId, setSelectedEvaluatorId] = useState(null);
   const [assigning, setAssigning] = useState(false);
 
-  const { data: tenders, isLoading, error } = useQuery({
+  const { data: tenders, isLoading, error, refetch } = useQuery({
     queryKey: ["tenders"],
     queryFn: fetchTenders,
   });
+
+  async function handlePublish(tenderId) {
+    try {
+      await apiClient.patch(`/tenders/${tenderId}/status`, { status: "PUBLISHED" });
+      message.success("Tender published -- now visible to bidders");
+      refetch();
+    } catch (err) {
+      message.error(err.response?.data?.detail || "Could not publish tender");
+    }
+  }
 
   const { data: evaluators } = useQuery({
     queryKey: ["evaluators"],
@@ -133,7 +165,16 @@ function TenderList() {
           )}
           {user?.role === "PUBLISHER" && (
             <>
-              <Button size="small" onClick={() => navigate(`/tenders/${record.id}`)}>
+              {record.status === "DRAFT" && (
+                <Button
+                  size="small"
+                  type="primary"
+                  onClick={() => handlePublish(record.id)}
+                >
+                  {t("tenderList.publish")}
+                </Button>
+              )}
+              <Button size="small" style={{ marginLeft: 8 }} onClick={() => navigate(`/tenders/${record.id}`)}>
                 {t("tenderList.manage")}
               </Button>
               <Button
@@ -145,8 +186,15 @@ function TenderList() {
               </Button>
             </>
           )}
-          {user?.role === "BIDDER" && (
-            <Button size="small" onClick={() => navigate(`/bidder-portal`)}>
+          <Button
+            size="small"
+            icon={<FileTextOutlined />}
+            onClick={() => viewNitDocument(record.id)}
+          >
+            {t("tenderList.viewNit")}
+          </Button>
+          {user?.role === "BIDDER" && new Date(record.deadline) > new Date() && (
+            <Button size="small" style={{ marginLeft: 8 }} onClick={() => navigate(`/bidder-portal`)}>
               {t("tenderList.applyNow")}
             </Button>
           )}
