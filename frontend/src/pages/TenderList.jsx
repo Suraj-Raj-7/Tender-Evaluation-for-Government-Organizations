@@ -13,7 +13,7 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Table, Tag, Button, Spin, Alert, Modal, Select, message } from "antd";
+import { Table, Tag, Button, Spin, Alert, Modal, Select, Form, Input, message } from "antd";
 import { FileTextOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -77,6 +77,9 @@ function TenderList() {
   const [assigningFor, setAssigningFor] = useState(null);
   const [selectedEvaluatorId, setSelectedEvaluatorId] = useState(null);
   const [assigning, setAssigning] = useState(false);
+  const [applyingFor, setApplyingFor] = useState(null);
+  const [applying, setApplying] = useState(false);
+  const [applyForm] = Form.useForm();
 
   const { data: tenders, isLoading, error, refetch } = useQuery({
     queryKey: ["tenders"],
@@ -90,6 +93,26 @@ function TenderList() {
       refetch();
     } catch (err) {
       message.error(err.response?.data?.detail || "Could not publish tender");
+    }
+  }
+
+  async function handleApply(values) {
+    setApplying(true);
+    try {
+      await apiClient.post(`/tenders/${applyingFor.id}/bidders`, {
+        company_name: values.company_name || undefined,
+        gstin: values.gstin || undefined,
+        cin: values.cin || undefined,
+        category: values.category,
+      });
+      message.success(`Applied to ${applyingFor.name}. You can now upload documents from My Applications.`);
+      setApplyingFor(null);
+      applyForm.resetFields();
+      navigate("/bidder-portal");
+    } catch (err) {
+      message.error(err.response?.data?.detail || "Could not apply to tender");
+    } finally {
+      setApplying(false);
     }
   }
 
@@ -194,7 +217,15 @@ function TenderList() {
             {t("tenderList.viewNit")}
           </Button>
           {user?.role === "BIDDER" && new Date(record.deadline) > new Date() && (
-            <Button size="small" style={{ marginLeft: 8 }} onClick={() => navigate(`/bidder-portal`)}>
+            <Button
+              size="small"
+              type="primary"
+              style={{ marginLeft: 8 }}
+              onClick={() => {
+                setApplyingFor(record);
+                applyForm.resetFields();
+              }}
+            >
               {t("tenderList.applyNow")}
             </Button>
           )}
@@ -237,6 +268,39 @@ function TenderList() {
           onChange={setSelectedEvaluatorId}
           options={evaluators?.map((e) => ({ value: e.id, label: `${e.full_name} (${e.username})` }))}
         />
+      </Modal>
+
+      <Modal
+        title={applyingFor ? `${t("tenderList.applyNow")} -- ${applyingFor.name}` : ""}
+        open={!!applyingFor}
+        onCancel={() => setApplyingFor(null)}
+        onOk={() => applyForm.submit()}
+        confirmLoading={applying}
+        okText={t("tenderList.applyNow")}
+      >
+        <Form form={applyForm} layout="vertical" onFinish={handleApply} initialValues={{ category: "GENERAL" }}>
+          <p style={{ color: "#666", fontSize: 13, marginBottom: 12 }}>
+            {t("tenderList.applyHelp")}
+          </p>
+          <Form.Item label={t("registerBidder.companyName")} name="company_name">
+            <Input placeholder={t("tenderList.leaveBlankToUseRegistered")} />
+          </Form.Item>
+          <Form.Item label={t("registerBidder.gstin")} name="gstin">
+            <Input placeholder={t("tenderList.leaveBlankToUseRegistered")} />
+          </Form.Item>
+          <Form.Item label="CIN" name="cin">
+            <Input placeholder="Optional" />
+          </Form.Item>
+          <Form.Item label={t("tenderList.bidderCategory")} name="category">
+            <Select
+              options={[
+                { value: "GENERAL", label: "GENERAL" },
+                { value: "MSME", label: "MSME" },
+                { value: "STARTUP", label: "STARTUP" },
+              ]}
+            />
+          </Form.Item>
+        </Form>
       </Modal>
     </AppLayout>
   );

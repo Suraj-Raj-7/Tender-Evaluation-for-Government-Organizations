@@ -11,8 +11,8 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Table, Tag, Button, Spin, Alert, Modal, Upload, Input, message } from "antd";
-import { UploadOutlined } from "@ant-design/icons";
+import { Table, Tag, Button, Spin, Alert, Modal, Upload, Input, List, message } from "antd";
+import { UploadOutlined, FileTextOutlined } from "@ant-design/icons";
 import { useTranslation } from "react-i18next";
 import apiClient from "../api/client.js";
 import AppLayout from "../components/AppLayout.jsx";
@@ -23,6 +23,29 @@ const { TextArea } = Input;
 async function fetchMyApplications() {
   const response = await apiClient.get("/bidders/me");
   return response.data;
+}
+
+async function fetchBidderDocuments(bidderId) {
+  const response = await apiClient.get(`/bidders/${bidderId}/documents`);
+  return response.data;
+}
+
+/**
+ * Purpose: Downloads one document's actual bytes (through the
+ * authenticated apiClient) and opens it in a new tab -- same pattern
+ * as DocumentViewer.jsx and TenderList.jsx's View NIT button.
+ *
+ * Where it's used: called by the "View" button in the already-
+ * uploaded-documents list inside the upload modal below.
+ */
+async function viewDocument(documentId) {
+  try {
+    const response = await apiClient.get(`/documents/${documentId}`, { responseType: "blob" });
+    const blobUrl = URL.createObjectURL(response.data);
+    window.open(blobUrl, "_blank");
+  } catch (err) {
+    message.error("Could not open document");
+  }
 }
 
 function BidderPortal() {
@@ -38,6 +61,12 @@ function BidderPortal() {
   const { data: applications, isLoading, error, refetch } = useQuery({
     queryKey: ["myApplications"],
     queryFn: fetchMyApplications,
+  });
+
+  const { data: existingDocuments, refetch: refetchDocuments } = useQuery({
+    queryKey: ["bidderDocuments", uploadingFor?.id],
+    queryFn: () => fetchBidderDocuments(uploadingFor.id),
+    enabled: !!uploadingFor,
   });
 
   async function handleSubmitGrievance() {
@@ -163,6 +192,40 @@ function BidderPortal() {
       >
         {!jobId && (
           <>
+            {existingDocuments && existingDocuments.length > 0 && (
+              <>
+                <p style={{ fontWeight: 600, marginBottom: 4 }}>{t("bidderPortal.alreadyUploaded")}</p>
+                <List
+                  size="small"
+                  bordered
+                  style={{ marginBottom: 16 }}
+                  dataSource={existingDocuments}
+                  renderItem={(doc) => (
+                    <List.Item
+                      actions={[
+                        <Button
+                          key="view"
+                          size="small"
+                          icon={<FileTextOutlined />}
+                          onClick={() => viewDocument(doc.id)}
+                        >
+                          {t("bidderPortal.view")}
+                        </Button>,
+                      ]}
+                    >
+                      <span>{doc.original_filename}</span>
+                      <span style={{ color: "#999", fontSize: 12, marginLeft: 8 }}>
+                        {new Date(doc.uploaded_at).toLocaleString()}
+                      </span>
+                    </List.Item>
+                  )}
+                />
+              </>
+            )}
+            {existingDocuments && existingDocuments.length === 0 && (
+              <p style={{ color: "#999", marginBottom: 12 }}>{t("bidderPortal.noDocumentsYet")}</p>
+            )}
+
             <Upload
               multiple
               beforeUpload={(file) => {
@@ -191,6 +254,7 @@ function BidderPortal() {
               if (job.status === "DONE") {
                 message.success("Documents processed successfully");
                 refetch();
+                refetchDocuments();
               }
             }}
           />
