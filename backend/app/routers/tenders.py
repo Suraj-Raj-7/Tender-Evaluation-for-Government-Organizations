@@ -21,7 +21,7 @@ from app.schemas.tender import (
     TenderCreate, TenderResponse, TenderStatusUpdate,
     TenderEvaluatorAssign, CorrigendumCreate, CorrigendumResponse,
 )
-from app.schemas.document import UploadResponse
+from app.schemas.document import UploadResponse, DocumentResponse
 from app.schemas.user import UserResponse
 from app.services.storage import upload_file
 from app.services.audit_logger import log_action
@@ -219,6 +219,35 @@ def list_corrigenda(
 ):
     """Lists every amendment ever issued for a tender, newest actions included."""
     return db.query(Corrigendum).filter(Corrigendum.tender_id == tender_id).all()
+
+
+@router.get("/{tender_id}/document", response_model=DocumentResponse)
+def get_tender_nit_document(
+    tender_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Purpose: Returns metadata for a tender's NIT document (bidder_id
+    is null, since it belongs to the tender itself, not a specific
+    applicant) -- so the frontend knows which document_id to request
+    from GET /documents/{id} for the actual file bytes.
+
+    Where it gets its data: tender_id from the URL. Filters Document
+    rows to this tender with bidder_id IS NULL.
+
+    Where it's used: called by TenderList.jsx's "View NIT" button,
+    open to any logged-in role since bidders need to read the NIT
+    before applying.
+    """
+    document = (
+        db.query(Document)
+        .filter(Document.tender_id == tender_id, Document.bidder_id.is_(None))
+        .first()
+    )
+    if document is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No NIT document found for this tender")
+    return document
 
 
 @router.post("/{tender_id}/document", response_model=UploadResponse)

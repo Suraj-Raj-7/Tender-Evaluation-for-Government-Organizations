@@ -50,7 +50,11 @@ def get_document(
     if document is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
 
-    if current_user.role == RoleEnum.BIDDER:
+    if current_user.role == RoleEnum.BIDDER and document.bidder_id is not None:
+        # A NIT document (bidder_id is None) belongs to the tender
+        # itself, not any specific bidder -- it's meant to be publicly
+        # readable by any bidder browsing that tender, so only a
+        # bidder-specific document needs this ownership check.
         bidder = db.query(Bidder).filter(
             Bidder.id == document.bidder_id, Bidder.user_id == current_user.id
         ).first()
