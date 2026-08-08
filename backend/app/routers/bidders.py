@@ -38,6 +38,16 @@ def apply_to_tender(
     tender. Falls back to the bidder's saved company_name/gstin (from
     registration) if not provided in the request.
     """
+    tender = db.query(Tender).filter(Tender.id == tender_id).first()
+    if tender is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tender not found")
+
+    if datetime.now(timezone.utc) > tender.deadline:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Bid submission deadline has passed. No further applications can be accepted.",
+        )
+
     existing = db.query(Bidder).filter(
         Bidder.tender_id == tender_id, Bidder.user_id == current_user.id
     ).first()
