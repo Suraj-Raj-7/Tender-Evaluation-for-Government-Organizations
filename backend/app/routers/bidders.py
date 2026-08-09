@@ -7,7 +7,6 @@ applications across all tenders, and bidders upload their supporting
 documents (with the hard deadline lock enforced).
 """
 
-from app.workers.tasks import process_bidder_documents
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.orm import Session
@@ -18,9 +17,8 @@ from app.models.user import User, RoleEnum
 from app.models.tender import Tender
 from app.models.bidder import Bidder
 from app.models.document import Document
-from app.models.job import Job, JobType, JobStatus
 from app.schemas.bidder import BidderCreate, BidderResponse, MyApplicationResponse
-from app.schemas.document import UploadResponse
+from app.schemas.document import BidderUploadResponse
 from app.services.storage import upload_file
 
 router = APIRouter(tags=["bidders"])
@@ -117,7 +115,7 @@ def list_my_applications(
     return results
 
 
-@router.post("/tenders/{tender_id}/bidders/{bidder_id}/documents", response_model=UploadResponse)
+@router.post("/tenders/{tender_id}/bidders/{bidder_id}/documents", response_model=BidderUploadResponse)
 async def upload_bid_documents(
     tender_id: int,
     bidder_id: int,
@@ -129,6 +127,12 @@ async def upload_bid_documents(
     Purpose: Uploads one or more supporting documents for a bidder's
     application. HARD DEADLINE LOCK: rejected immediately if the
     tender's deadline has already passed (legal requirement, spec 5.2).
+
+    Note: no OCR or AI processing happens here anymore -- documents
+    are just saved. Evidence extraction is deferred until the
+    Evaluator begins the tender's evaluation (see
+    routers/evaluation.py's begin_evaluation endpoint), after the
+    deadline has passed and every bidder's final document set is known.
     """
     tender = db.query(Tender).filter(Tender.id == tender_id).first()
     if tender is None:
@@ -146,26 +150,22 @@ async def upload_bid_documents(
     if bidder is None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not your application")
 
+    document_ids = []
     for upload in files:
         contents = await upload.read()
         storage_path = upload_file(contents, upload.filename, upload.content_type)
-        db.add(Document(
+        document = Document(
             tender_id=tender_id,
             bidder_id=bidder_id,
             uploaded_by=current_user.id,
             storage_path=storage_path,
             original_filename=upload.filename,
             mime_type=upload.content_type,
-        ))
+        )
+        db.add(document)
+        db.flush()  # assigns document.id
+        document_ids.append(document.id)
 
-    job = Job(
-        tender_id=tender_id, bidder_id=bidder_id,
-        type=JobType.BIDDER_EXTRACTION, status=JobStatus.PENDING,
-    )
-    db.add(job)
     db.commit()
-    db.refresh(job)
 
-    process_bidder_documents.delay(job.id)
-
-    return UploadResponse(job_id=job.id)
+    return BidderUploadResponse(document_ids=document_ids)

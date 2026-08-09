@@ -10,18 +10,21 @@ specific file?" before streaming it back -- so a bidder can never see
 another bidder's documents.
 """
 
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
 from io import BytesIO
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, require_role
 from app.models.user import User, RoleEnum
 from app.models.document import Document
 from app.models.bidder import Bidder
+from app.models.tender import Tender
 from app.schemas.document import DocumentResponse
-from app.services.storage import download_file
+from app.services.storage import download_file, delete_file
+from app.services.audit_logger import log_action
 from app.services.audit_logger import log_action
 
 router = APIRouter(tags=["documents"])
@@ -81,6 +84,60 @@ def get_document(
         media_type=document.mime_type,
         headers={"Content-Disposition": f'inline; filename="{document.original_filename}"'},
     )
+
+
+@router.delete("/documents/{document_id}")
+def delete_document(
+    document_id: int,
+    http_request: Request,
+    current_user: User = Depends(require_role(RoleEnum.BIDDER.value)),
+    db: Session = Depends(get_db),
+):
+    """
+    Purpose: Lets a bidder remove a document they mistakenly uploaded
+    or want to replace with a better copy -- only allowed before the
+    tender's deadline (spec 2.3: "Replace or update documents any
+    number of times before deadline"). Safe and side-effect-free
+    since no AI processing ever touches a document before the
+    deadline passes (see upload_bid_documents in routers/bidders.py).
+
+    Where it gets its data: document_id from the URL. current_user
+    identifies the requester, checked against the document's owning
+    Bidder row.
+    """
+    document = db.query(Document).filter(Document.id == document_id).first()
+    if document is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+
+    bidder = db.query(Bidder).filter(
+        Bidder.id == document.bidder_id, Bidder.user_id == current_user.id
+    ).first()
+    if bidder is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not your document")
+
+    tender = db.query(Tender).filter(Tender.id == document.tender_id).first()
+    if tender is not None and datetime.now(timezone.utc) > tender.deadline:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Bid submission deadline has passed. Documents can no longer be removed.",
+        )
+
+    delete_file(document.storage_path)
+
+    log_action(
+        db,
+        user_id=current_user.id,
+        action="DOCUMENT_DELETED",
+        entity_type="document",
+        entity_id=document.id,
+        old_value={"original_filename": document.original_filename},
+        ip_address=http_request.client.host if http_request.client else None,
+    )
+
+    db.delete(document)
+    db.commit()
+
+    return {"message": "Document deleted"}
 
 
 @router.get("/bidders/{bidder_id}/documents", response_model=list[DocumentResponse])
