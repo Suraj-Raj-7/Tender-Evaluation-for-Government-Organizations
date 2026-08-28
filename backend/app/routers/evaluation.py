@@ -27,8 +27,9 @@ from app.schemas.evaluation import (
     EvidenceDetailResponse, OverrideHistoryItem,
 )
 from app.schemas.verdict import OverrideRequest, VerdictResponse
+from app.models.job import Job, JobType, JobStatus
 from app.services.rules_engine import calculate_overall_verdict
-from app.workers.tasks import send_notifications
+from app.workers.tasks import send_notifications, process_bidder_documents
 
 router = APIRouter(tags=["evaluation"])
 
@@ -217,6 +218,90 @@ def override_verdict(
         calculate_overall_verdict(evidence.bidder_id, db)
 
     return verdict
+
+
+@router.post("/tenders/{tender_id}/begin-evaluation")
+def begin_evaluation(
+    tender_id: int,
+    http_request: Request,
+    current_user: User = Depends(require_role(RoleEnum.EVALUATOR.value)),
+    db: Session = Depends(get_db),
+):
+    """
+    Purpose: Starts a tender's technical evaluation -- the moment AI
+    evidence extraction actually happens, deliberately deferred from
+    upload time until now (see routers/bidders.py's upload endpoint,
+    which just saves files and does nothing else). Queues one
+    independent background job per bidder, so one bidder's OCR/AI
+    failure can never block or delay any other bidder's evaluation.
+
+    Where it gets its data: tender_id from the URL. Queries every
+    Bidder row for this tender.
+
+    Where it's used: called by the frontend's "Begin Evaluation"
+    button on EvaluationMatrix.jsx, shown only once the tender's
+    deadline has passed and evaluation hasn't started yet.
+
+    Note: this does not wait for any bidder's processing to finish --
+    it queues every job and returns immediately with the list of job
+    IDs, so the frontend can poll them.
+    """
+    tender = db.query(Tender).filter(Tender.id == tender_id).first()
+    if tender is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tender not found")
+
+    if datetime.now(timezone.utc) < tender.deadline:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "Cannot begin evaluation before the submission deadline "
+                f"({tender.deadline.isoformat()}) -- bidders may still apply and upload documents."
+            ),
+        )
+
+    if tender.status not in (TenderStatus.PUBLISHED, TenderStatus.CORRIGENDUM_ISSUED):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot begin evaluation -- tender status is currently {tender.status.value}",
+        )
+
+    bidders = db.query(Bidder).filter(Bidder.tender_id == tender_id).all()
+
+    tender.status = TenderStatus.EVALUATION
+
+    job_ids = []
+    for bidder in bidders:
+        job = Job(
+            tender_id=tender_id, bidder_id=bidder.id,
+            type=JobType.BIDDER_EXTRACTION, status=JobStatus.PENDING,
+        )
+        db.add(job)
+        db.flush()  # assigns job.id
+        job_ids.append(job.id)
+
+    log_action(
+        db,
+        user_id=current_user.id,
+        action="EVALUATION_BEGUN",
+        entity_type="tender",
+        entity_id=tender.id,
+        new_value={"bidder_count": len(bidders)},
+        ip_address=http_request.client.host if http_request.client else None,
+    )
+    db.commit()
+
+    # Queue every bidder's processing AFTER commit -- the Celery
+    # worker runs in a separate process with its own DB session, so
+    # it must only ever see the tender's final, saved EVALUATION
+    # status and each Job row that's actually been committed.
+    for job_id in job_ids:
+        process_bidder_documents.delay(job_id)
+
+    return {
+        "message": f"Evaluation begun for {len(bidders)} bidder(s)",
+        "tender_id": tender_id,
+        "job_ids": job_ids,
+    }
 
 
 @router.post("/tenders/{tender_id}/complete")
