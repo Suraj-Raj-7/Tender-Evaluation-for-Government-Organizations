@@ -304,6 +304,55 @@ def begin_evaluation(
     }
 
 
+@router.post("/tenders/{tender_id}/bidders/{bidder_id}/re-evaluate")
+def re_evaluate_bidder(
+    tender_id: int,
+    bidder_id: int,
+    http_request: Request,
+    current_user: User = Depends(require_role(RoleEnum.EVALUATOR.value)),
+    db: Session = Depends(get_db),
+):
+    """
+    Purpose: Re-runs AI evidence extraction for exactly one bidder --
+    e.g. after their initial run failed, or the Evaluator wants a
+    fresh pass. Reuses the exact same process_bidder_documents Celery
+    task as begin_evaluation() above, just for a single bidder rather
+    than every bidder on the tender. Safe to call repeatedly: any
+    criterion the Evaluator has already manually overridden is always
+    skipped and never regenerated (see process_one_bidder() in
+    workers/tasks.py).
+
+    Where it gets its data: tender_id and bidder_id from the URL.
+
+    Where it's used: called by the frontend's per-bidder "Re-evaluate"
+    button on EvaluationMatrix.jsx.
+    """
+    bidder = db.query(Bidder).filter(Bidder.id == bidder_id, Bidder.tender_id == tender_id).first()
+    if bidder is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bidder not found on this tender")
+
+    job = Job(
+        tender_id=tender_id, bidder_id=bidder_id,
+        type=JobType.BIDDER_EXTRACTION, status=JobStatus.PENDING,
+    )
+    db.add(job)
+    db.flush()
+
+    log_action(
+        db,
+        user_id=current_user.id,
+        action="BIDDER_RE_EVALUATED",
+        entity_type="bidder",
+        entity_id=bidder_id,
+        ip_address=http_request.client.host if http_request.client else None,
+    )
+    db.commit()
+
+    process_bidder_documents.delay(job.id)
+
+    return {"message": f"Re-evaluation started for {bidder.company_name}", "job_id": job.id}
+
+
 @router.post("/tenders/{tender_id}/complete")
 def mark_evaluation_complete(
     tender_id: int,
