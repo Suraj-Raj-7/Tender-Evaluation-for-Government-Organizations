@@ -11,12 +11,11 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Table, Tag, Button, Spin, Alert, Modal, Upload, Input, List, message } from "antd";
-import { UploadOutlined, FileTextOutlined } from "@ant-design/icons";
+import { Table, Tag, Button, Spin, Alert, Modal, Upload, Input, List, Popconfirm, message } from "antd";
+import { UploadOutlined, FileTextOutlined, DeleteOutlined } from "@ant-design/icons";
 import { useTranslation } from "react-i18next";
 import apiClient from "../api/client.js";
 import AppLayout from "../components/AppLayout.jsx";
-import JobStatusPoller from "../components/JobStatusPoller.jsx";
 
 const { TextArea } = Input;
 
@@ -52,7 +51,6 @@ function BidderPortal() {
   const { t } = useTranslation();
   const [uploadingFor, setUploadingFor] = useState(null);
   const [files, setFiles] = useState([]);
-  const [jobId, setJobId] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [grievanceFor, setGrievanceFor] = useState(null);
   const [grievanceText, setGrievanceText] = useState("");
@@ -68,6 +66,27 @@ function BidderPortal() {
     queryFn: () => fetchBidderDocuments(uploadingFor.id),
     enabled: !!uploadingFor,
   });
+
+    /**
+   * Purpose: Removes a document the bidder previously uploaded --
+   * only meaningful before the deadline, since nothing is ever
+   * AI-processed until the Evaluator begins evaluation (see
+   * begin-evaluation on the backend), so deleting is a clean,
+   * side-effect-free action with nothing downstream to worry about.
+   *
+   * Where it's used: called by the Delete button in the "already
+   * uploaded" document list below, after the user confirms via
+   * Popconfirm.
+   */
+  async function handleDeleteDocument(documentId) {
+    try {
+      await apiClient.delete(`/documents/${documentId}`);
+      message.success("Document deleted");
+      refetchDocuments();
+    } catch (err) {
+      message.error(err.response?.data?.detail || "Could not delete document");
+    }
+  }
 
   async function handleSubmitGrievance() {
     if (grievanceText.trim().length < 20) {
@@ -99,12 +118,14 @@ function BidderPortal() {
 
     setSubmitting(true);
     try {
-      const response = await apiClient.post(
+      await apiClient.post(
         `/tenders/${uploadingFor.tender_id}/bidders/${uploadingFor.id}/documents`,
         formData,
         { headers: { "Content-Type": "multipart/form-data" } }
       );
-      setJobId(response.data.job_id);
+      message.success("Documents uploaded");
+      setFiles([]);
+      refetchDocuments();
     } catch (err) {
       message.error(err.response?.data?.detail || "Upload failed");
     } finally {
@@ -190,75 +211,70 @@ function BidderPortal() {
         onCancel={() => setUploadingFor(null)}
         footer={null}
       >
-        {!jobId && (
+        {existingDocuments && existingDocuments.length > 0 && (
           <>
-            {existingDocuments && existingDocuments.length > 0 && (
-              <>
-                <p style={{ fontWeight: 600, marginBottom: 4 }}>{t("bidderPortal.alreadyUploaded")}</p>
-                <List
-                  size="small"
-                  bordered
-                  style={{ marginBottom: 16 }}
-                  dataSource={existingDocuments}
-                  renderItem={(doc) => (
-                    <List.Item
-                      actions={[
-                        <Button
-                          key="view"
-                          size="small"
-                          icon={<FileTextOutlined />}
-                          onClick={() => viewDocument(doc.id)}
-                        >
-                          {t("bidderPortal.view")}
-                        </Button>,
-                      ]}
+            <p style={{ fontWeight: 600, marginBottom: 4 }}>{t("bidderPortal.alreadyUploaded")}</p>
+            <List
+              size="small"
+              bordered
+              style={{ marginBottom: 16 }}
+              dataSource={existingDocuments}
+              renderItem={(doc) => (
+                <List.Item
+                  actions={[
+                    <Button
+                      key="view"
+                      size="small"
+                      icon={<FileTextOutlined />}
+                      onClick={() => viewDocument(doc.id)}
                     >
-                      <span>{doc.original_filename}</span>
-                      <span style={{ color: "#999", fontSize: 12, marginLeft: 8 }}>
-                        {new Date(doc.uploaded_at).toLocaleString()}
-                      </span>
-                    </List.Item>
-                  )}
-                />
-              </>
-            )}
-            {existingDocuments && existingDocuments.length === 0 && (
-              <p style={{ color: "#999", marginBottom: 12 }}>{t("bidderPortal.noDocumentsYet")}</p>
-            )}
-
-            <Upload
-              multiple
-              beforeUpload={(file) => {
-                setFiles((prev) => [...prev, file]);
-                return false;
-              }}
-              onRemove={(file) => setFiles((prev) => prev.filter((f) => f !== file))}
-            >
-              <Button icon={<UploadOutlined />}>{t("bidderPortal.selectFiles")}</Button>
-            </Upload>
-            <Button
-              type="primary"
-              style={{ marginTop: 12 }}
-              onClick={handleUpload}
-              loading={submitting}
-            >
-              {t("bidderPortal.upload")}
-            </Button>
+                      {t("bidderPortal.view")}
+                    </Button>,
+                    <Popconfirm
+                      key="delete"
+                      title={t("bidderPortal.confirmDelete")}
+                      onConfirm={() => handleDeleteDocument(doc.id)}
+                      okText={t("bidderPortal.yesDelete")}
+                      cancelText={t("bidderPortal.cancel")}
+                    >
+                      <Button size="small" danger icon={<DeleteOutlined />}>
+                        {t("bidderPortal.delete")}
+                      </Button>
+                    </Popconfirm>,
+                  ]}
+                >
+                  <span>{doc.original_filename}</span>
+                  <span style={{ color: "#999", fontSize: 12, marginLeft: 8 }}>
+                    {new Date(doc.uploaded_at).toLocaleString()}
+                  </span>
+                </List.Item>
+              )}
+            />
           </>
         )}
-
-        {jobId && (
-          <JobStatusPoller
-            jobId={jobId}
-            onComplete={(job) => {
-              if (job.status === "DONE") {
-                message.success("Documents processed successfully");
-                refetch();
-                refetchDocuments();
-              }
-            }}
-          />
+        {existingDocuments && existingDocuments.length === 0 && (
+          <p style={{ color: "#999", marginBottom: 12 }}>{t("bidderPortal.noDocumentsYet")}</p>
         )}
+
+        <Upload
+          multiple
+          beforeUpload={(file) => {
+            setFiles((prev) => [...prev, file]);
+            return false;
+          }}
+          onRemove={(file) => setFiles((prev) => prev.filter((f) => f !== file))}
+        >
+          <Button icon={<UploadOutlined />}>{t("bidderPortal.selectFiles")}</Button>
+        </Upload>
+        <Button
+          type="primary"
+          style={{ marginTop: 12 }}
+          onClick={handleUpload}
+          loading={submitting}
+          disabled={submitting}
+        >
+          {t("bidderPortal.upload")}
+        </Button>
       </Modal>
 
       <Modal
