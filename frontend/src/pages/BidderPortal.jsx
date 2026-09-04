@@ -50,6 +50,16 @@ async function viewDocument(documentId) {
 function BidderPortal() {
   const { t } = useTranslation();
   const [uploadingFor, setUploadingFor] = useState(null);
+  // FIX (stale file list bug): this now holds Ant Design's own
+  // UploadFile[] shape (each with uid/name/status/originFileObj),
+  // not raw File objects. Passed straight back into <Upload> via the
+  // fileList prop below -- making <Upload> fully "controlled" so our
+  // state is the ONLY source of truth for what's staged. Previously,
+  // <Upload> quietly kept its own internal copy of the file list for
+  // display, separate from our own "files" array -- resetting our
+  // array on modal close/reopen never touched that internal copy, so
+  // old staged files reappeared even for a completely different
+  // tender's upload modal.
   const [files, setFiles] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [grievanceFor, setGrievanceFor] = useState(null);
@@ -67,7 +77,7 @@ function BidderPortal() {
     enabled: !!uploadingFor,
   });
 
-    /**
+  /**
    * Purpose: Removes a document the bidder previously uploaded --
    * only meaningful before the deadline, since nothing is ever
    * AI-processed until the Evaluator begins evaluation (see
@@ -108,13 +118,24 @@ function BidderPortal() {
     }
   }
 
+  /**
+   * Purpose: Sends every staged file to the backend as one multipart
+   * upload. Unwraps each UploadFile's real `originFileObj` (the
+   * actual browser File the FormData API needs) since "files" now
+   * holds Ant Design's UploadFile wrapper objects, not raw Files.
+   *
+   * Where it gets its data: files is this component's controlled
+   * Upload state (see the FIX comment above).
+   *
+   * Where it's used: called by the "Upload" button in the modal below.
+   */
   async function handleUpload() {
     if (files.length === 0) {
       message.warning("Select at least one file");
       return;
     }
     const formData = new FormData();
-    files.forEach((f) => formData.append("files", f));
+    files.forEach((f) => formData.append("files", f.originFileObj));
 
     setSubmitting(true);
     try {
@@ -173,8 +194,14 @@ function BidderPortal() {
         icon={<UploadOutlined />}
         onClick={() => {
           setUploadingFor(record);
+          // FIX (dead reference): this used to also call
+          // setJobId(null), left over from when uploads queued a
+          // Celery job and this page polled it with JobStatusPoller.
+          // That state was removed when uploads became synchronous
+          // (AI processing moved to the Evaluator's Begin Evaluation
+          // step) -- the call was never cleaned up and referenced a
+          // state setter that no longer exists.
           setFiles([]);
-          setJobId(null);
         }}
       >
         {t("bidderPortal.uploadDocuments")}
@@ -220,33 +247,50 @@ function BidderPortal() {
               style={{ marginBottom: 16 }}
               dataSource={existingDocuments}
               renderItem={(doc) => (
-                <List.Item
-                  actions={[
-                    <Button
-                      key="view"
-                      size="small"
-                      icon={<FileTextOutlined />}
-                      onClick={() => viewDocument(doc.id)}
-                    >
-                      {t("bidderPortal.view")}
-                    </Button>,
-                    <Popconfirm
-                      key="delete"
-                      title={t("bidderPortal.confirmDelete")}
-                      onConfirm={() => handleDeleteDocument(doc.id)}
-                      okText={t("bidderPortal.yesDelete")}
-                      cancelText={t("bidderPortal.cancel")}
-                    >
-                      <Button size="small" danger icon={<DeleteOutlined />}>
-                        {t("bidderPortal.delete")}
+                // FIX (layout bug, same root cause already fixed once
+                // in EvaluationMatrix.jsx's View Documents drawer): a
+                // long filename could push the View/Delete buttons
+                // outside the modal's visible width, forcing
+                // horizontal scrolling to reach them. Same principle
+                // applied here: the filename/timestamp block gets
+                // minWidth: 0 (lets flexbox actually shrink it) plus
+                // text-overflow: ellipsis for truncation, while the
+                // two action buttons sit in their own flexShrink: 0
+                // group so they're never squeezed out of view. Using
+                // a plain flex wrapper here instead of List.Item's
+                // built-in "actions" prop, since "actions" renders
+                // its own fixed-width slot that doesn't shrink the
+                // way a manually flexed row does.
+                <List.Item>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", gap: 8 }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {doc.original_filename}
+                      </div>
+                      <div style={{ color: "#999", fontSize: 12 }}>
+                        {new Date(doc.uploaded_at).toLocaleString()}
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+                      <Button
+                        size="small"
+                        icon={<FileTextOutlined />}
+                        onClick={() => viewDocument(doc.id)}
+                      >
+                        {t("bidderPortal.view")}
                       </Button>
-                    </Popconfirm>,
-                  ]}
-                >
-                  <span>{doc.original_filename}</span>
-                  <span style={{ color: "#999", fontSize: 12, marginLeft: 8 }}>
-                    {new Date(doc.uploaded_at).toLocaleString()}
-                  </span>
+                      <Popconfirm
+                        title={t("bidderPortal.confirmDelete")}
+                        onConfirm={() => handleDeleteDocument(doc.id)}
+                        okText={t("bidderPortal.yesDelete")}
+                        cancelText={t("bidderPortal.cancel")}
+                      >
+                        <Button size="small" danger icon={<DeleteOutlined />}>
+                          {t("bidderPortal.delete")}
+                        </Button>
+                      </Popconfirm>
+                    </div>
+                  </div>
                 </List.Item>
               )}
             />
@@ -256,13 +300,15 @@ function BidderPortal() {
           <p style={{ color: "#999", marginBottom: 12 }}>{t("bidderPortal.noDocumentsYet")}</p>
         )}
 
+        {/*
+          Controlled Upload (fixed for the stale-file-list bug) --
+          see the "files" state comment above for the full reasoning.
+        */}
         <Upload
           multiple
-          beforeUpload={(file) => {
-            setFiles((prev) => [...prev, file]);
-            return false;
-          }}
-          onRemove={(file) => setFiles((prev) => prev.filter((f) => f !== file))}
+          fileList={files}
+          beforeUpload={() => false}
+          onChange={({ fileList: newFileList }) => setFiles(newFileList)}
         >
           <Button icon={<UploadOutlined />}>{t("bidderPortal.selectFiles")}</Button>
         </Upload>
