@@ -41,18 +41,38 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
+// FIX (found via real testing on ChangePassword.jsx): a handful of
+// endpoints can return 401 for a reason that has NOTHING to do with
+// the JWT token itself -- e.g. /auth/change-password returns 401 when
+// the user simply typed their CURRENT password wrong, while still
+// being fully, validly logged in. The interceptor below used to treat
+// every 401, from every endpoint, as "your session expired" and
+// force-logged the user out -- so a wrong current-password guess
+// looked exactly like an expired session, and the page's own error
+// message never even got a chance to render. Endpoints listed here
+// are excluded from the auto-logout behavior; their 401 is instead
+// left to the calling page's own try/catch to handle and display.
+const ENDPOINTS_WHERE_401_IS_NOT_A_SESSION_PROBLEM = ["/auth/change-password", "/auth/login"];
+
 /**
  * Purpose: Runs after every response. If the backend returns 401
  * (token invalid or expired -- e.g. after 8 hours, per security.py's
  * ACCESS_TOKEN_EXPIRE_HOURS), forces a full logout and sends the user
- * back to the login page, instead of leaving them stuck on a broken page.
+ * back to the login page, instead of leaving them stuck on a broken
+ * page. Skips this for the endpoints listed above, where a 401 means
+ * something else entirely (see the comment above that list).
  *
  * Where it's used: automatically, on every response, by axios itself.
  */
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response && error.response.status === 401) {
+    const requestUrl = error.config?.url || "";
+    const isExemptEndpoint = ENDPOINTS_WHERE_401_IS_NOT_A_SESSION_PROBLEM.some((path) =>
+      requestUrl.includes(path)
+    );
+
+    if (error.response && error.response.status === 401 && !isExemptEndpoint) {
       sessionStorage.removeItem("token");
       sessionStorage.removeItem("user");
       window.location.href = "/login";
