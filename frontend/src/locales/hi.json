@@ -9,6 +9,7 @@
   },
   "common": {
     "logout": "लॉग आउट",
+    "changePassword": "पासवर्ड बदलें",
     "actions": "कार्रवाई",
     "status": "स्थिति"
   },
@@ -186,5 +187,15 @@
     "accountCreated": "खाता बनाया गया",
     "accountCreatedDesc": "अब आप अपने ईमेल और पासवर्ड से लॉग इन कर सकते हैं।",
     "goToLogin": "लॉगिन पर जाएं"
+  },
+  "changePassword": {
+    "title": "पासवर्ड बदलें",
+    "currentPassword": "वर्तमान पासवर्ड",
+    "newPassword": "नया पासवर्ड",
+    "confirmNewPassword": "नए पासवर्ड की पुष्टि करें",
+    "minLengthHint": "न्यूनतम 8 अक्षर",
+    "mismatchError": "पासवर्ड मेल नहीं खाते",
+    "submit": "पासवर्ड बदलें",
+    "successMessage": "पासवर्ड सफलतापूर्वक बदल दिया गया"
   }
 }

@@ -9,6 +9,7 @@
   },
   "common": {
     "logout": "Logout",
+    "changePassword": "Change Password",
     "actions": "Actions",
     "status": "Status"
   },
@@ -186,5 +187,15 @@
     "accountCreated": "Account created",
     "accountCreatedDesc": "You can now log in with your email and password.",
     "goToLogin": "Go to Login"
+  },
+  "changePassword": {
+    "title": "Change Password",
+    "currentPassword": "Current Password",
+    "newPassword": "New Password",
+    "confirmNewPassword": "Confirm New Password",
+    "minLengthHint": "Minimum 8 characters",
+    "mismatchError": "Passwords do not match",
+    "submit": "Change Password",
+    "successMessage": "Password changed successfully"
   }
 }

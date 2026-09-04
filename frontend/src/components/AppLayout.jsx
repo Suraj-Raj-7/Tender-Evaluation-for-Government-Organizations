@@ -148,6 +148,13 @@ function AppLayout({ children }) {
               </Text>
             </Space>
           )}
+          {/* New: lets any role reach the Change Password page (see
+              App.jsx's /change-password route) without needing
+              Swagger -- previously the backend endpoint had no
+              frontend entry point at all. */}
+          <Button onClick={() => navigate("/change-password")}>
+            {t("common.changePassword")}
+          </Button>
           <Button onClick={handleLogout}>{t("common.logout")}</Button>
         </Space>
       </Header>

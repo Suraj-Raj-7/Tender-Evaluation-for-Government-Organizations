@@ -17,6 +17,7 @@ import BidderPortal from "./pages/BidderPortal.jsx";
 import AdminPanel from "./pages/AdminPanel.jsx";
 import AuditLog from "./pages/AuditLog.jsx";
 import GrievancesPage from "./pages/GrievancesPage.jsx";
+import ChangePassword from "./pages/ChangePassword.jsx";
 import RoleGuard from "./components/RoleGuard.jsx";
 
 const ALL_ROLES = ["SYSTEM_ADMIN", "PUBLISHER", "BIDDER", "EVALUATOR", "AUDITOR"];
@@ -32,6 +33,12 @@ function App() {
       <Route
         path="/tenders"
         element={<RoleGuard allowedRoles={ALL_ROLES}><TenderList /></RoleGuard>}
+      />
+
+      {/* Open to any logged-in role -- every role can change their own password */}
+      <Route
+        path="/change-password"
+        element={<RoleGuard allowedRoles={ALL_ROLES}><ChangePassword /></RoleGuard>}
       />
 
       {/* Publisher only */}
